@@ -1,0 +1,50 @@
+.page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 4.5rem 1.75rem;
+}
+
+.title {
+  font: 400 var(--step-3) / 1.2 var(--font-display), Georgia, serif;
+  margin: 1.125rem 0 0;
+}
+
+.lead {
+  font-size: var(--step-1);
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin-top: 1rem;
+}
+
+.steps {
+  font-size: var(--step-0);
+  line-height: 1.75;
+  color: var(--ink-2);
+  padding-left: 1.25rem;
+  margin-top: 1.375rem;
+}
+
+.steps li {
+  margin-bottom: 0.75rem;
+}
+
+.details {
+  margin-top: 2.125rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1rem;
+}
+
+.summary {
+  cursor: pointer;
+}
+
+.raw {
+  font: 400 var(--step--1) / 1.7 var(--font-mono), monospace;
+  color: var(--ink-2);
+  background: var(--paper-sunk);
+  border-radius: 2px;
+  padding: 0.875rem 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.875rem;
+}

@@ -1,30 +1,42 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Book } from "@/lib/notion";
+import BookModal from "./BookModal";
+import styles from "./Bookshelf.module.css";
 
-/* Cloth colours tuned for a dark case. Each is a bookbinding tone rather than
-   a UI hue, and each stays distinguishable at 14px of spine width. */
+/* Cloth colours resolve to tokens rather than literals, so the palette lives
+   in one file. Each is a bookbinding tone rather than a UI hue, and each is
+   verified at or above 4.5:1 against the paper ground. */
 const CLOTH: Record<string, string> = {
-  "Fantasy": "#B0793F",
-  "Sci-Fi": "#4A90C4",
-  "Classic Literature": "#8E8C82",
-  "Historical Fiction": "#C46A90",
-  "Mythology": "#C9A227",
-  "Philosophical Fiction": "#5E9B84",
-  "Gothic / Horror": "#8A6FB8",
-  "Dystopian Fiction": "#A06FC4",
-  "Mystery / Detective": "#4FA07A",
-  "Epic Poetry": "#D98A4A",
-  "Adventure": "#D0563C",
+  Fantasy: "var(--cloth-fantasy)",
+  "Sci-Fi": "var(--cloth-scifi)",
+  "Classic Literature": "var(--cloth-classic)",
+  "Historical Fiction": "var(--cloth-historical)",
+  Mythology: "var(--cloth-mythology)",
+  "Philosophical Fiction": "var(--cloth-philosophical)",
+  "Gothic / Horror": "var(--cloth-gothic)",
+  "Dystopian Fiction": "var(--cloth-dystopian)",
+  "Mystery / Detective": "var(--cloth-mystery)",
+  "Epic Poetry": "var(--cloth-poetry)",
+  Adventure: "var(--cloth-adventure)",
 };
 
-const FALLBACK = "#8E8C82";
-const CASE = "#191B18";
-const LINEN = "#E8E4D9";
+const FALLBACK = "var(--cloth-fallback)";
+const STATUSES = ["All", "Read", "Reading", "Unread"] as const;
 
-const cloth = (b: Book) => CLOTH[b.g[0]] ?? FALLBACK;
-const callNumber = (b: Book) => `${b.sh}\u00b7${String(b.p).padStart(2, "0")}`;
+const SORTS = [
+  { value: "shelf", label: "Shelf order" },
+  { value: "title", label: "Title, A to Z" },
+  { value: "author", label: "Author, A to Z" },
+  { value: "finished", label: "Recently finished" },
+  { value: "rating", label: "Highest rated" },
+] as const;
+
+const clothFor = (genre: string) => CLOTH[genre] ?? FALLBACK;
+const cloth = (b: Book) => clothFor(b.g[0]);
+const callNumber = (b: Book) => `${b.sh}·${String(b.p).padStart(2, "0")}`;
 
 function hash(s: string) {
   let h = 0;
@@ -44,12 +56,57 @@ function height(b: Book) {
   return 140 + (hash(b.a + b.t) % 58);
 }
 
+const label = (b: Book) =>
+  `${b.t} by ${b.a}. Shelf ${b.sh}, position ${b.p}. ${b.s}.`;
+
 type Slot = { empty: true; p: number } | (Book & { empty?: false });
 
 export default function Bookshelf({ books }: { books: Book[] }) {
-  const [status, setStatus] = useState("All");
-  const [genre, setGenre] = useState("All");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "All");
+  const [genre, setGenre] = useState(() => searchParams.get("genre") ?? "All");
+  const [sort, setSort] = useState(() => searchParams.get("sort") ?? "shelf");
   const [selected, setSelected] = useState<Book | null>(null);
+
+  const statusRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+  const [overflowing, setOverflowing] = useState(false);
+
+  /* Filter state is mirrored into the URL so a view can be shared, bookmarked,
+     and undone with the Back button. Debounced so typing does not push a
+     history entry per keystroke. */
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (status !== "All") params.set("status", status);
+      if (genre !== "All") params.set("genre", genre);
+      if (sort !== "shelf") params.set("sort", sort);
+      const query = params.toString();
+      router.replace(query ? `?${query}` : window.location.pathname, { scroll: false });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [q, status, genre, sort, router]);
+
+  /* The edge fades only mean something when there is actually more shelf out
+     of view, so they are gated on a measured overflow rather than assumed. */
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const check = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [sort]);
 
   const genres = useMemo(() => {
     const set = new Set<string>();
@@ -62,220 +119,294 @@ export default function Bookshelf({ books }: { books: Book[] }) {
     [books]
   );
 
-  const matches = (b: Book) =>
-    (status === "All" || b.s === status) && (genre === "All" || b.g.includes(genre));
+  const needle = q.trim().toLowerCase();
 
-  const hits = books.filter(matches).length;
-  const read = books.filter((b) => b.s === "Read").length;
+  const matches = useCallback(
+    (b: Book) =>
+      (status === "All" || b.s === status) &&
+      (genre === "All" || b.g.includes(genre)) &&
+      (!needle ||
+        b.t.toLowerCase().includes(needle) ||
+        b.a.toLowerCase().includes(needle)),
+    [status, genre, needle]
+  );
 
-  const chip = (active: boolean): React.CSSProperties => ({
-    font: "500 11px/1 var(--font-mono), monospace",
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    padding: "8px 14px",
-    borderRadius: 1,
-    cursor: "pointer",
-    border: `1px solid ${active ? "var(--brass)" : "var(--rule)"}`,
-    background: active ? "var(--brass)" : "transparent",
-    color: active ? CASE : "var(--linen-dim)",
-  });
+  const visible = useMemo(() => books.filter(matches), [books, matches]);
+  const read = useMemo(() => books.filter((b) => b.s === "Read").length, [books]);
+
+  /* Non-shelf orders break the physical-position metaphor, so they switch to an
+     explicit catalog view rather than silently rearranging the shelves. */
+  const catalog = useMemo(() => {
+    const list = [...visible];
+    switch (sort) {
+      case "title":
+        return list.sort((a, b) => a.t.localeCompare(b.t));
+      case "author":
+        return list.sort((a, b) => a.a.localeCompare(b.a) || a.t.localeCompare(b.t));
+      case "finished":
+        return list.sort((a, b) => (b.finished ?? "").localeCompare(a.finished ?? ""));
+      case "rating":
+        return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || a.t.localeCompare(b.t));
+      default:
+        return list;
+    }
+  }, [visible, sort]);
+
+  const onStatusKeyDown = (e: React.KeyboardEvent, index: number) => {
+    const last = STATUSES.length - 1;
+    let next = index;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    else return;
+    e.preventDefault();
+    setStatus(STATUSES[next]);
+    statusRefs.current[next]?.focus();
+  };
 
   if (!books.length) {
     return (
-      <main style={{ padding: "72px 28px", fontFamily: "var(--font-sans), sans-serif" }}>
-        <div className="eyebrow" style={{ marginBottom: 18 }}>Empty stacks</div>
-        <h1 style={{ font: "400 34px/1.2 var(--font-display), Georgia, serif", margin: 0 }}>Nothing on the shelf</h1>
-        <p style={{ font: "400 15px/1.7 var(--font-sans), sans-serif", color: "var(--linen-dim)" }}>
-          Notion answered, but no rows came back carrying both a shelf number and a position.
+      <main className={`${styles.page} ${styles.emptyState}`}>
+        <p className="eyebrow">Empty stacks</p>
+        <h1 className={styles.title}>Nothing on the shelf</h1>
+        <p className={styles.lede}>
+          Notion answered, but no rows came back carrying both a shelf number and a
+          position.
         </p>
       </main>
     );
   }
 
-  const stat = (value: number, label: string) => (
-    <div key={label} style={{ paddingRight: 34 }}>
-      <div style={{ font: "400 30px/1 var(--font-display), Georgia, serif", color: LINEN }}>{value}</div>
-      <div className="eyebrow" style={{ marginTop: 8 }}>{label}</div>
+  const stat = (value: number, name: string, live = false) => (
+    <div key={name} className={`${styles.stat} ${live ? styles.statLive : ""}`}>
+      <dt className={`eyebrow ${styles.statLabel}`}>{name}</dt>
+      <dd className={styles.statValue}>{value}</dd>
     </div>
   );
 
+  const spine = (book: Book) => {
+    const vars = {
+      "--cloth": cloth(book),
+      "--h": `${height(book)}px`,
+      "--w": weight(book),
+    } as React.CSSProperties;
+
+    const inner = (
+      <>
+        <span className={styles.spineTitle}>{book.t}</span>
+        <span className={styles.plate} aria-hidden="true">
+          {callNumber(book)}
+        </span>
+      </>
+    );
+
+    /* Filtered-out spines become decorative. They previously stayed in the tab
+       order at 0.14 opacity, so a keyboard user landed on targets they could
+       not see. */
+    if (!matches(book)) {
+      return (
+        <div
+          key={book.u}
+          className={styles.spine}
+          style={vars}
+          data-read={book.s === "Read"}
+          data-dim="true"
+          aria-hidden="true"
+        >
+          {inner}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={book.u}
+        type="button"
+        className={styles.spine}
+        style={vars}
+        data-read={book.s === "Read"}
+        aria-label={label(book)}
+        onClick={() => setSelected(book)}
+      >
+        {inner}
+      </button>
+    );
+  };
+
   return (
-    <main style={{ padding: "56px 32px 48px", fontFamily: "var(--font-sans), system-ui, sans-serif", maxWidth: 1320, margin: "0 auto" }}>
-      <header style={{ marginBottom: 34 }}>
-        <div className="eyebrow">Bookshelf inventory</div>
-        <h1 style={{ font: "400 clamp(42px, 7vw, 68px)/1 var(--font-display), Georgia, serif", margin: "14px 0 0", color: LINEN }}>
-          The shelf, as it stands
-        </h1>
-        <p style={{ font: "400 15px/1.7 var(--font-sans), sans-serif", color: "var(--linen-dim)", margin: "16px 0 0", maxWidth: 560 }}>
-          Every volume in its real position, left to right. Cloth spines are read, hollow spines
-          are waiting. The plate on each spine carries its shelf and position.
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <p className="eyebrow">Bookshelf inventory</p>
+        <h1 className={styles.title}>The shelf, as it stands</h1>
+        <p className={styles.lede}>
+          {sort === "shelf"
+            ? "Every volume in its real position, left to right. Cloth spines are read, page blocks are waiting. The plate on each spine carries its shelf and position."
+            : "The same inventory as a catalog, ordered off the shelf. Switch back to shelf order to see each volume in its real position."}
         </p>
       </header>
 
-      <div style={{ display: "flex", flexWrap: "wrap", borderTop: "1px solid var(--rule)", borderBottom: "1px solid var(--rule)", padding: "22px 0", marginBottom: 30 }}>
+      <dl className={styles.stats}>
         {stat(books.length, "Volumes")}
         {stat(read, "Read")}
         {stat(books.length - read, "Waiting")}
-        {stat(hits, "In view")}
-      </div>
+        {stat(visible.length, "In view", true)}
+      </dl>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 42 }}>
-        {["All", "Read", "Reading", "Unread"].map((s) => (
-          <button key={s} onClick={() => setStatus(s)} style={chip(status === s)}>{s}</button>
-        ))}
-        <span style={{ width: 1, height: 24, background: "var(--rule)", margin: "0 8px" }} />
-        <label htmlFor="genre" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Filter by subject</label>
-        <select id="genre" value={genre} onChange={(e) => setGenre(e.target.value)} style={{ ...chip(genre !== "All"), padding: "8px 10px", textTransform: "none", letterSpacing: "0.04em" }}>
-          {genres.map((g) => <option key={g} value={g} style={{ background: CASE, color: LINEN }}>{g}</option>)}
+      <div className={styles.toolbar}>
+        <label className="visually-hidden" htmlFor="search">
+          Search by title or author
+        </label>
+        <input
+          id="search"
+          type="search"
+          className={styles.search}
+          placeholder="Search title or author"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+
+        <div className={styles.group} role="radiogroup" aria-label="Filter by status">
+          {STATUSES.map((s, i) => (
+            <button
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={status === s}
+              tabIndex={status === s ? 0 : -1}
+              ref={(el) => {
+                statusRefs.current[i] = el;
+              }}
+              className={styles.chip}
+              onClick={() => setStatus(s)}
+              onKeyDown={(e) => onStatusKeyDown(e, i)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <span className={styles.divider} aria-hidden="true" />
+
+        <label className="visually-hidden" htmlFor="genre">
+          Filter by subject
+        </label>
+        <select
+          id="genre"
+          className={styles.select}
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+        >
+          {genres.map((g) => (
+            <option key={g} value={g}>
+              {g === "All" ? "All subjects" : g}
+            </option>
+          ))}
+        </select>
+
+        <label className="visually-hidden" htmlFor="sort">
+          Sort order
+        </label>
+        <select
+          id="sort"
+          className={styles.select}
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          {SORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      {shelfNumbers.map((n) => {
-        const shelfBooks = books.filter((b) => b.sh === n).sort((a, b) => a.p - b.p);
-        const maxPos = Math.max(...shelfBooks.map((b) => b.p));
-        const slots: Slot[] = [];
-        for (let p = 1; p <= maxPos; p++) {
-          const found = shelfBooks.find((b) => b.p === p);
-          slots.push(found ?? { empty: true, p });
-        }
-        return (
-          <section key={n} style={{ marginBottom: 46 }}>
-            <div className="stacks">
-              <div className="row">
-                {slots.map((slot) =>
-                  slot.empty ? (
-                    <div
-                      key={`empty-${n}-${slot.p}`}
-                      title={`Position ${slot.p} has no record in Notion`}
-                      style={{ flex: "1 0 0", minWidth: 0, height: 30, border: "1px dashed var(--rule)", borderBottom: "none" }}
-                    />
-                  ) : (
-                    <a
-                      key={slot.u}
-                      href={slot.u}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="spine"
-                      onMouseEnter={() => setSelected(slot)}
-                      onFocus={() => setSelected(slot)}
-                      title={`${slot.t} by ${slot.a}`}
-                      style={{
-                        flex: `${weight(slot)} 0 0`,
-                        minWidth: 0,
-                        height: height(slot),
-                        background: matches(slot) && slot.s === "Read" ? cloth(slot) : "transparent",
-                        border: `1px solid ${cloth(slot)}`,
-                        borderBottom: "none",
-                        color: slot.s === "Read" ? CASE : cloth(slot),
-                        opacity: matches(slot) ? 1 : 0.14,
-                        borderRadius: "2px 2px 0 0",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "stretch",
-                        justifyContent: "space-between",
-                        textDecoration: "none",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <span
-                        style={{
-                          flex: 1,
-                          minHeight: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "flex-end",
-                          writingMode: "vertical-rl",
-                          textOrientation: "mixed",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          font: "500 11px/1 var(--font-sans), sans-serif",
-                          letterSpacing: "0.04em",
-                          padding: "12px 0 8px",
-                        }}
-                      >
-                        {slot.t}
-                      </span>
-                      <span
-                        style={{
-                          background: matches(slot) ? "rgba(232,228,217,0.92)" : "rgba(232,228,217,0.35)",
-                          color: CASE,
-                          font: "400 10px/1 var(--font-mono), monospace",
-                          letterSpacing: "0.02em",
-                          writingMode: "vertical-rl",
-                          textOrientation: "mixed",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "7px 0",
-                          margin: "0 2px 6px",
-                          borderRadius: 1,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {callNumber(slot)}
-                      </span>
-                    </a>
-                  )
-                )}
-              </div>
-            </div>
-            <div className="board" />
-            <div className="board-shadow" />
-            <div className="eyebrow" style={{ marginTop: 8 }}>
-              Shelf {n} &middot; {shelfBooks.length} volumes &middot; {shelfBooks.filter((b) => b.s === "Read").length} read
-            </div>
-          </section>
-        );
-      })}
+      <p className={styles.status} role="status">
+        {visible.length} of {books.length} volumes in view
+        {sort !== "shelf" ? ", shown as a catalog" : ""}
+      </p>
 
-      <div style={{ marginTop: 12, minHeight: 220 }}>
-        {selected ? (
-          <article
-            className="card-rules"
-            style={{
-              background: LINEN,
-              color: CASE,
-              maxWidth: 560,
-              padding: "26px 28px 30px",
-              borderRadius: 2,
-              borderLeft: `4px solid ${cloth(selected)}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, font: "400 11px/1 var(--font-mono), monospace", letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b6960" }}>
-              <span>{callNumber(selected)}</span>
-              <span>{selected.s}</span>
+      {sort === "shelf" ? (
+        <>
+          <a className="skip-link" href="#past-shelves">
+            Skip past the shelves
+          </a>
+          <div className={styles.scrollFrame} data-overflow={overflowing}>
+            <div className={styles.scroller} ref={scrollerRef}>
+              {shelfNumbers.map((n) => {
+                const shelfBooks = books
+                  .filter((b) => b.sh === n)
+                  .sort((a, b) => a.p - b.p);
+                const maxPos = Math.max(...shelfBooks.map((b) => b.p));
+                const slots: Slot[] = [];
+                for (let p = 1; p <= maxPos; p++) {
+                  slots.push(shelfBooks.find((b) => b.p === p) ?? { empty: true, p });
+                }
+                return (
+                  <section
+                    key={n}
+                    className={styles.shelf}
+                    aria-labelledby={`shelf-${n}`}
+                  >
+                    <h2 id={`shelf-${n}`} className={styles.shelfTitle}>
+                      Shelf {n}
+                    </h2>
+                    <p className={`eyebrow ${styles.shelfMeta}`}>
+                      {shelfBooks.length} volumes &middot;{" "}
+                      {shelfBooks.filter((b) => b.s === "Read").length} read
+                    </p>
+                    <div className={styles.row}>
+                      {slots.map((slot) =>
+                        slot.empty ? (
+                          <div
+                            key={`empty-${n}-${slot.p}`}
+                            className={styles.empty}
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          spine(slot)
+                        )
+                      )}
+                    </div>
+                    <div className={styles.board} />
+                  </section>
+                );
+              })}
             </div>
-            <h2 style={{ font: "400 26px/1.25 var(--font-display), Georgia, serif", margin: "18px 0 0", color: CASE }}>
-              {selected.t}
-            </h2>
-            <div style={{ font: "400 14px/1.6 var(--font-sans), sans-serif", color: "#4a4841", marginTop: 6 }}>{selected.a}</div>
-            <div style={{ marginTop: 20, borderTop: "1px solid rgba(25,27,24,0.14)", paddingTop: 14 }}>
-              <div style={{ font: "400 10px/1 var(--font-mono), monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8a8880" }}>
-                Subject headings
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-                {selected.g.map((g) => (
-                  <span key={g} style={{ font: "500 11px/1 var(--font-sans), sans-serif", padding: "6px 10px", border: `1px solid ${CLOTH[g] ?? FALLBACK}`, color: "#3a3831", borderRadius: 1 }}>{g}</span>
-                ))}
-              </div>
-            </div>
-            {selected.pages ? (
-              <div style={{ font: "400 11px/1 var(--font-mono), monospace", color: "#8a8880", marginTop: 16, letterSpacing: "0.06em" }}>
-                {selected.pages} pages
-              </div>
-            ) : null}
-          </article>
-        ) : (
-          <div style={{ borderTop: "1px solid var(--rule)", paddingTop: 18 }}>
-            <div className="eyebrow">Catalog card</div>
-            <p style={{ font: "400 14px/1.6 var(--font-sans), sans-serif", color: "var(--linen-faint)", marginTop: 10 }}>
-              Hover a spine to pull its card.
-            </p>
           </div>
-        )}
-      </div>
+          <div id="past-shelves" tabIndex={-1} />
+        </>
+      ) : (
+        <ul className={styles.catalog}>
+          {catalog.map((book) => (
+            <li key={book.u}>
+              <button
+                type="button"
+                className={styles.catalogItem}
+                style={{ "--cloth": cloth(book) } as React.CSSProperties}
+                aria-label={label(book)}
+                onClick={() => setSelected(book)}
+              >
+                <p className={styles.catalogTitle}>{book.t}</p>
+                <p className={styles.catalogAuthor}>{book.a}</p>
+                <p className={styles.catalogMeta}>
+                  <span>{callNumber(book)}</span>
+                  <span>{book.s}</span>
+                  {book.rating ? <span>{"★".repeat(book.rating)}</span> : null}
+                </p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <BookModal
+        book={selected}
+        cloth={cloth}
+        clothFor={clothFor}
+        callNumber={callNumber}
+        onClose={() => setSelected(null)}
+      />
     </main>
   );
 }
