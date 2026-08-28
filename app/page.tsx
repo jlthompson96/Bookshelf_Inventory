@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { getBooks, NotionError, type Book, type FailureKind } from "@/lib/notion";
 import Bookshelf from "@/components/Bookshelf";
+import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -59,26 +61,28 @@ export default async function Page() {
   if (kind) {
     const g = GUIDANCE[kind];
     return (
-      <main style={{ padding: "72px 28px", maxWidth: 680, margin: "0 auto", fontFamily: "var(--font-sans), system-ui, sans-serif" }}>
-        <div className="eyebrow" style={{ marginBottom: 18 }}>Circulation desk</div>
-        <h1 style={{ font: "400 34px/1.2 var(--font-display), Georgia, serif", margin: 0, color: "var(--linen)" }}>
-          {g.title}
-        </h1>
-        <p style={{ font: "400 15px/1.7 var(--font-sans), sans-serif", color: "var(--linen-dim)", marginTop: 16 }}>{g.lead}</p>
-        <ol style={{ font: "400 15px/1.75 var(--font-sans), sans-serif", color: "var(--linen-dim)", paddingLeft: 20, marginTop: 22 }}>
+      <main className={styles.page}>
+        <p className="eyebrow">Circulation desk</p>
+        <h1 className={styles.title}>{g.title}</h1>
+        <p className={styles.lead}>{g.lead}</p>
+        <ol className={styles.steps}>
           {g.steps.map((s, i) => (
-            <li key={i} style={{ marginBottom: 12 }}>{s}</li>
+            <li key={i}>{s}</li>
           ))}
         </ol>
-        <details style={{ marginTop: 34, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>
-          <summary className="eyebrow" style={{ cursor: "pointer" }}>Raw response</summary>
-          <pre style={{ font: "400 12px/1.7 var(--font-mono), monospace", color: "var(--linen-faint)", whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 14 }}>
-            {detail}
-          </pre>
+        <details className={styles.details}>
+          <summary className={`eyebrow ${styles.summary}`}>Raw response</summary>
+          <pre className={styles.raw}>{detail}</pre>
         </details>
       </main>
     );
   }
 
-  return <Bookshelf books={books} />;
+  /* Bookshelf reads the filter state out of the URL with useSearchParams, which
+     needs its own boundary. */
+  return (
+    <Suspense>
+      <Bookshelf books={books} />
+    </Suspense>
+  );
 }

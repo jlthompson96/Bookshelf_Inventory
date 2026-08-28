@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Libre_Caslon_Display, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -9,6 +9,15 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variabl
 export const metadata: Metadata = {
   title: "Bookshelf",
   description: "Every volume in shelf order, drawn from the Notion Bookshelf Inventory.",
+  openGraph: {
+    title: "Bookshelf",
+    description: "Every volume in shelf order, drawn from the Notion Bookshelf Inventory.",
+    type: "website",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f4f0e6",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
