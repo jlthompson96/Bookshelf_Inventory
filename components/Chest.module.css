@@ -1,0 +1,443 @@
+/* Presentation for the storage chest. The shelf stands its books upright and
+   reads them left to right; the chest lies them flat and stacks them upward, so
+   the same per-book custom properties land on the opposite axes:
+
+     --w  thickness of the book   -> slab HEIGHT
+     --d  depth lying flat        -> slab WIDTH
+
+   Everything else — the cloth fill, the page-block striping, the pasted call
+   number — is deliberately the same vocabulary as the shelf. */
+
+.page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 4rem;
+}
+
+/* --- header -------------------------------------------------------------- */
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font: 400 var(--step-4) / 1.02 var(--font-display), Georgia, serif;
+  margin: 0.75rem 0 0;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  font-size: var(--step-1);
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin: 1rem 0 0;
+  max-width: 34em;
+}
+
+/* --- stats --------------------------------------------------------------- */
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.375rem 0;
+  margin: 0 0 1.875rem;
+}
+
+.stat {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.statValue {
+  order: -1;
+  font: 400 var(--step-3) / 1 var(--font-display), Georgia, serif;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLive .statValue {
+  color: var(--brass);
+}
+
+.statLabel {
+  margin-top: 0.5rem;
+}
+
+/* --- toolbar ------------------------------------------------------------- */
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.search {
+  font: 400 var(--step-0) / 1 var(--font-sans), sans-serif;
+  padding: 0.625rem 0.75rem;
+  min-width: 15rem;
+  flex: 1 1 15rem;
+  max-width: 24rem;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+.search::placeholder {
+  color: var(--ink-3);
+}
+
+.group {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font: 500 var(--step--1) / 1 var(--font-mono), monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.6rem 0.9rem;
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid var(--rule-strong);
+}
+
+.chip:hover {
+  background: var(--paper-sunk);
+}
+
+/* Selection carries a weight and marker change as well as a fill, so it does
+   not rest on colour alone (WCAG 1.4.1). */
+.chip[aria-checked="true"] {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--paper);
+  font-weight: 700;
+}
+
+.chip[aria-checked="true"]::before {
+  content: "· ";
+}
+
+.select {
+  font: 500 var(--step--1) / 1 var(--font-mono), monospace;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.65rem;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--ink-2);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+}
+
+.divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--rule-strong);
+  margin: 0 0.25rem;
+}
+
+.status {
+  margin: 0 0 2rem;
+  color: var(--ink-3);
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+}
+
+/* --- the chest ----------------------------------------------------------- */
+
+.scrollFrame {
+  position: relative;
+}
+
+.scroller {
+  overflow-x: auto;
+  /* overflow-y computes to auto alongside overflow-x, so the lifted slab and
+     its focus ring need headroom inside the box or they get clipped (2.4.11). */
+  padding-top: 1.75rem;
+  scrollbar-width: thin;
+}
+
+.scrollFrame[data-overflow="true"]::before,
+.scrollFrame[data-overflow="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.75rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.scrollFrame[data-overflow="true"]::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--paper), transparent);
+}
+
+.scrollFrame[data-overflow="true"]::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--paper), transparent);
+}
+
+/* Every pile rests on the same line, so the piles stretch to a common height
+   and the chest floor is drawn once underneath all of them. */
+.chest {
+  display: flex;
+  align-items: stretch;
+  gap: 2.5rem;
+  padding: 0 0.5rem;
+  /* No min-height: the tallest pile sets the row and the rest stretch to match,
+     so the headings line up without opening a gap above short piles. */
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Three rows: title, count, then the books. Only the last row grows, which
+   lines every pile's heading up along the top while the slabs themselves stay
+   bottom-aligned on the floor — a short pile should look short, but its label
+   should not float halfway up the page to say so. */
+.pile {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  justify-items: center;
+}
+
+.pileBooks {
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+
+.pileMeta {
+  margin: 0 0 0.625rem;
+  text-align: center;
+}
+
+.pileTitle {
+  font: 400 var(--step-1) / 1.2 var(--font-display), Georgia, serif;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+/* A book seen from the side: the cloth binding wraps the left edge, the pages
+   show as fine horizontal striping. Mirrors .spine on the shelf, rotated. */
+.slab {
+  width: calc(var(--d) * 1px);
+  height: calc(var(--w) * 15px);
+  min-height: 13px;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: inherit;
+  color: var(--cloth);
+  background: repeating-linear-gradient(
+      180deg,
+      rgba(35, 32, 27, 0.05) 0 1px,
+      transparent 1px 4px
+    ),
+    var(--paper-raised);
+  border: 1px solid var(--cloth);
+  border-left-width: 4px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  overflow: hidden;
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.slab[data-read="true"] {
+  background: var(--cloth);
+  color: var(--paper);
+  box-shadow: inset 0 1px 0 rgba(251, 248, 241, 0.22);
+}
+
+.slab[data-dim="true"] {
+  opacity: 0.25;
+}
+
+/* Sliding out of the pile rather than lifting off it — a book pulled from a
+   stack comes towards you. */
+.slab:hover,
+.slab:focus-visible {
+  transform: translateX(calc(var(--lift) * -1));
+}
+
+/* A book lying flat shows its spine the right way up, so unlike the shelf this
+   title reads horizontally. */
+.slabTitle {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 500 var(--step--2) / 1 var(--font-sans), sans-serif;
+  letter-spacing: 0.04em;
+  padding-left: 0.5rem;
+}
+
+.plate {
+  flex: none;
+  background: var(--paper);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px rgba(35, 32, 27, 0.14);
+  font: 400 0.625rem / 1 var(--font-mono), monospace;
+  letter-spacing: 0.02em;
+  padding: 0 0.2rem;
+  margin-right: 4px;
+  border-radius: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* A gap in the data is not something to narrate — decorative only. */
+.empty {
+  width: 90px;
+  height: 12px;
+  background: var(--paper-sunk);
+  border-radius: 1px;
+}
+
+/* The chest bottom. Same walnut as the shelf board, but read as a floor the
+   piles sit on rather than a board they stand on, so the grain runs across and
+   the shadow falls inward. */
+.floor {
+  height: 14px;
+  margin-top: 2px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+      90deg,
+      rgba(35, 32, 27, 0.06) 0 3px,
+      transparent 3px 9px
+    ),
+    linear-gradient(
+      180deg,
+      var(--walnut-lit) 0%,
+      var(--walnut) 40%,
+      var(--walnut-deep) 100%
+    );
+  box-shadow: inset 0 2px 4px rgba(35, 32, 27, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* --- unplaced ------------------------------------------------------------ */
+
+.loose {
+  margin-top: 3.5rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.75rem;
+}
+
+.looseTitle {
+  font: 400 var(--step-3) / 1.2 var(--font-display), Georgia, serif;
+  margin: 0.5rem 0 0;
+}
+
+.looseLede {
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin: 0.75rem 0 1.5rem;
+  max-width: 44em;
+}
+
+.catalog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.75rem;
+}
+
+.catalogItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  padding: 1rem 1.125rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--cloth);
+  border-radius: 2px;
+  color: var(--ink);
+  transition: border-color var(--dur) var(--ease);
+}
+
+.catalogItem:hover {
+  border-color: var(--rule-strong);
+  border-left-color: var(--cloth);
+}
+
+.catalogTitle {
+  font: 400 var(--step-1) / 1.3 var(--font-display), Georgia, serif;
+  margin: 0;
+}
+
+.catalogAuthor {
+  color: var(--ink-2);
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+}
+
+.catalogMeta {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.625rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--step--2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* --- empty state --------------------------------------------------------- */
+
+.emptyState {
+  padding: 4.5rem 0;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 2.5rem 1.25rem 3rem;
+  }
+  .stats {
+    gap: 1.5rem;
+  }
+  .divider {
+    display: none;
+  }
+  .select {
+    flex: 1 1 auto;
+  }
+  .chest {
+    gap: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slab,
+  .catalogItem {
+    transition: none;
+  }
+  /* Both states, not just hover — a keyboard user who asked for reduced motion
+     was still getting the jump on every Tab. */
+  .slab:hover,
+  .slab:focus-visible {
+    transform: none;
+  }
+}

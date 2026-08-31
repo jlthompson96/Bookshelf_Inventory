@@ -10,10 +10,17 @@ reordered. Any order other than shelf position switches to a catalog view, becau
 sorting a shelf by title would misrepresent where the books physically are. Filter state
 is mirrored into the URL, so a view can be shared and the Back button undoes it.
 
+Not everything fits on the shelf. `/chest` draws a second Notion database, Storage Chest
+Books, as the piles it actually is: each stack is a column of books lying flat, drawn
+bottom to top, resting on the chest floor. It shares the shelf's palette, proportions and
+catalog card. Books in the chest that have not been given a pile yet are listed under
+"Not yet placed" rather than dropped, so the page is useful while the pile numbers are
+still being filled in — see [The storage chest](#the-storage-chest).
+
 Books are shelved at `/add` by scanning the barcode on the back cover: the ISBN is looked
 up in the catalogues, the form fills itself in, and the shelf suggests the next open slot.
-This is the only route that writes to Notion, and it is off unless deliberately enabled —
-see [Shelving a book](#shelving-a-book).
+This is the only route that writes to Notion, it writes to the shelf only, and it is off
+unless deliberately enabled — see [Shelving a book](#shelving-a-book).
 
 Live deployment: <https://bookshelf-inventory-jlthompson96s-projects.vercel.app>
 
@@ -54,14 +61,16 @@ Accessibility behaviour worth preserving when editing:
 
 - Node.js 18.18 or newer
 - A Notion internal integration
-- Access to the Bookshelf Inventory database
+- Access to the Bookshelf Inventory page, which holds both the Books and Storage Chest
+  Books databases
 
 ## Local development
 
 1. Create an internal integration at <https://www.notion.so/my-integrations>.
 2. In the same Notion workspace, open the Bookshelf Inventory page and use **Connections**
-   to connect the integration. Connect it to the page rather than only to the inline
-   database so the database access is inherited.
+   to connect the integration. Connect it to the page rather than only to an inline
+   database, so access cascades to both the shelf and the storage chest. Sharing only the
+   Books database leaves `/chest` showing the "cannot see the database" explainer.
 3. Create `.env.local` in the repository root:
 
    ```env
@@ -92,15 +101,17 @@ npm run start  # Serve the production build
 
 ## Notion database schema
 
-The database ID is configured in `lib/notion.ts`. These properties are required:
+Both database IDs are configured in `lib/notion.ts`, as the `SHELF` and `CHEST`
+collections. A collection names the two properties that differ between them; everything
+else below is shared. These properties are required:
 
 | Property | Notion type | Purpose |
 | --- | --- | --- |
 | `Title` | Title | Book title |
 | `Author` | Rich text | Author name |
 | `Status` | Status | `Read`, `Reading`, or `Unread` |
-| `Shelf #` | Select | Numeric shelf number |
-| `Position (L --> R)` | Number | Position from left to right |
+| `Shelf #` / `Stack #` | Select | Numeric shelf, or pile in the chest |
+| `Position (L --> R)` / `Position (B --> T)` | Number | Position along the shelf, or up from the bottom of the pile |
 | `Genre` | Multi-select | Subject headings and spine colors |
 
 These properties are optional:
@@ -111,8 +122,31 @@ These properties are optional:
 | `Rating` | Select | Shown in the catalog card, and sortable as "Highest rated" |
 | `Date Finished` | Date | Shown in the catalog card, and sortable as "Recently finished" |
 
-Rows without a title, shelf number, or position are skipped. Results are sorted in the
-application by shelf and then position. Notion responses are cached for five minutes.
+Rows without a title are skipped everywhere. On the shelf a row missing its shelf number
+or position is skipped too, because there is nowhere to draw it; in the chest the same row
+is kept and listed as not yet placed. Results are sorted in the application by group and
+then position. Notion responses are cached for five minutes.
+
+## The storage chest
+
+`/chest` reads the Storage Chest Books database, whose schema matches the shelf's except
+that `Shelf #` is `Stack #` and `Position (L --> R)` is `Position (B --> T)` — books lie
+flat in a chest, so position 1 is the one on the bottom of the pile with everything else
+resting on it. The piles are drawn in that order, and `lib/shelf.ts` supplies the geometry
+for both views, so a gap in the numbering shows as a gap in the pile exactly as it does on
+the shelf.
+
+The two views share `lib/spine.ts`: one cloth palette, one set of proportions, one call
+number format. A spine standing on a shelf is tall and thin and a book lying flat is wide
+and shallow, so the same two numbers land on opposite axes in each view rather than being
+computed twice.
+
+Books whose pile has not been assigned appear under "Not yet placed" instead of being
+dropped. A row with a `Stack #` but no position counts as unplaced — there is no way to
+know where in the pile it sits — and sorts to the top of that list. Fill both in on the
+Notion side and the book moves into its pile with no code change.
+
+The chest is read-only. `/add` and the scanner write to the shelf database only.
 
 ## Catalogue lookup
 

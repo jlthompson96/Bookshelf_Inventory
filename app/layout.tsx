@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Libre_Caslon_Display, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import Nav from "@/components/Nav";
+import { writesEnabled } from "@/lib/auth";
 import "./globals.css";
 
 const display = Libre_Caslon_Display({ subsets: ["latin"], weight: ["400"], variable: "--font-display", display: "swap" });
@@ -7,7 +9,7 @@ const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500"], variabl
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Bookshelf",
+  title: { default: "Bookshelf", template: "%s · Bookshelf" },
   description: "Every volume in shelf order, drawn from the Notion Bookshelf Inventory.",
   openGraph: {
     title: "Bookshelf",
@@ -23,7 +25,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Nav canWrite={writesEnabled()} />
+        {children}
+      </body>
     </html>
   );
 }

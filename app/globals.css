@@ -133,8 +133,12 @@ a {
   border: 0;
 }
 
+/* Fixed rather than absolute: as an absolute box it was offset from <main>, so
+   once the nav pushed <main> down the page the -4rem no longer cleared the
+   viewport and the link sat visible in the corner. Against the viewport it is
+   offscreen wherever <main> happens to start. */
 .skip-link {
-  position: absolute;
+  position: fixed;
   left: 1rem;
   top: -4rem;
   z-index: 20;
@@ -183,6 +187,17 @@ a {
   animation: pulse 1.6s var(--ease) infinite;
 }
 
+/* The chest's equivalent: a book lying flat rather than standing up. Sized
+   inline, since a pile is a column of individually proportioned slabs. */
+.skeleton-slab {
+  flex: none;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 2px;
+  animation: pulse 1.6s var(--ease) infinite;
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -194,7 +209,8 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-spine {
+  .skeleton-spine,
+  .skeleton-slab {
     animation: none;
   }
   .skip-link {

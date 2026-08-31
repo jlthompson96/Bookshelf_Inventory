@@ -4,27 +4,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Book } from "@/lib/notion";
 import { booksOnShelf, shelfNumbers as shelvesIn, slotsFor } from "@/lib/shelf";
+import { callNumber, cloth, height, weight } from "@/lib/spine";
 import BookModal from "./BookModal";
 import styles from "./Bookshelf.module.css";
 
-/* Cloth colours resolve to tokens rather than literals, so the palette lives
-   in one file. Each is a bookbinding tone rather than a UI hue, and each is
-   verified at or above 4.5:1 against the paper ground. */
-const CLOTH: Record<string, string> = {
-  Fantasy: "var(--cloth-fantasy)",
-  "Sci-Fi": "var(--cloth-scifi)",
-  "Classic Literature": "var(--cloth-classic)",
-  "Historical Fiction": "var(--cloth-historical)",
-  Mythology: "var(--cloth-mythology)",
-  "Philosophical Fiction": "var(--cloth-philosophical)",
-  "Gothic / Horror": "var(--cloth-gothic)",
-  "Dystopian Fiction": "var(--cloth-dystopian)",
-  "Mystery / Detective": "var(--cloth-mystery)",
-  "Epic Poetry": "var(--cloth-poetry)",
-  Adventure: "var(--cloth-adventure)",
-};
-
-const FALLBACK = "var(--cloth-fallback)";
 const STATUSES = ["All", "Read", "Reading", "Unread"] as const;
 
 const SORTS = [
@@ -34,28 +17,6 @@ const SORTS = [
   { value: "finished", label: "Recently finished" },
   { value: "rating", label: "Highest rated" },
 ] as const;
-
-const clothFor = (genre: string) => CLOTH[genre] ?? FALLBACK;
-const cloth = (b: Book) => clothFor(b.g[0]);
-const callNumber = (b: Book) => `${b.sh}·${String(b.p).padStart(2, "0")}`;
-
-function hash(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-/* Width and height stand in for thickness until real page counts exist.
-   Add a Pages number property in Notion and both become proportional. */
-function weight(b: Book) {
-  if (b.pages) return Math.max(0.55, Math.min(2.2, b.pages / 320));
-  return 0.8 + (hash(b.t) % 45) / 100;
-}
-
-function height(b: Book) {
-  if (b.pages) return 140 + Math.min(60, Math.round(b.pages / 12));
-  return 140 + (hash(b.a + b.t) % 58);
-}
 
 const label = (b: Book) =>
   `${b.t} by ${b.a}. Shelf ${b.sh}, position ${b.p}. ${b.s}.`;
@@ -390,13 +351,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
         </ul>
       )}
 
-      <BookModal
-        book={selected}
-        cloth={cloth}
-        clothFor={clothFor}
-        callNumber={callNumber}
-        onClose={() => setSelected(null)}
-      />
+      <BookModal book={selected} kind="shelf" onClose={() => setSelected(null)} />
     </main>
   );
 }

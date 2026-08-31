@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { Book } from "@/lib/notion";
+import type { ChestBook } from "@/lib/notion";
 import type { BookInfo } from "@/lib/bookinfo";
+import { callNumber, cloth, clothFor } from "@/lib/spine";
 import styles from "./BookModal.module.css";
 
 /* A Notion date arrives as "YYYY-MM-DD". Passing that to the Date constructor
@@ -27,17 +28,19 @@ const SOURCE_NAME: Record<BookInfo["source"], string> = {
    same session is instant and costs no request. It lives outside the component
    because the dialog unmounts nothing but its own state. */
 const lookups = new Map<string, BookInfo | null>();
-const cacheKey = (b: Book) => `${b.t}|${b.a}`;
+const cacheKey = (b: ChestBook) => `${b.t}|${b.a}`;
 
+/* ChestBook rather than Book: its sh and p are nullable, so a shelved volume
+   satisfies it too and one card serves both views. */
 type Props = {
-  book: Book | null;
-  cloth: (b: Book) => string;
-  clothFor: (genre: string) => string;
-  callNumber: (b: Book) => string;
+  book: ChestBook | null;
+  /** Which inventory the card was opened from, so the whereabouts fact reads
+      as a shelf or as a pile. */
+  kind?: "shelf" | "chest";
   onClose: () => void;
 };
 
-export default function BookModal({ book, cloth, clothFor, callNumber, onClose }: Props) {
+export default function BookModal({ book, kind = "shelf", onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [info, setInfo] = useState<BookInfo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,6 +125,7 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
   }, []);
 
   const pages = book?.pages ?? info?.pages;
+  const plate = book ? callNumber(book) : null;
 
   return (
     <dialog
@@ -136,7 +140,7 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
         <div className={styles.inner}>
           <div className={styles.top}>
             <span className={styles.topMeta}>
-              <span>{callNumber(book)}</span>
+              {plate ? <span>{plate}</span> : null}
               <span>{book.s}</span>
             </span>
             <button
@@ -195,12 +199,22 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
           ) : null}
 
           <dl className={styles.facts}>
-            <div className={styles.fact}>
-              <dt className={styles.factLabel}>Shelf</dt>
-              <dd className={styles.factValue}>
-                {book.sh}, position {book.p}
-              </dd>
-            </div>
+            {/* Omitted rather than blank for a chest book with no pile assigned
+                yet: "Pile —, position —" would read as missing data on the card
+                rather than as a book simply not put away yet. */}
+            {book.sh != null && book.p != null ? (
+              <div className={styles.fact}>
+                <dt className={styles.factLabel}>{kind === "chest" ? "Pile" : "Shelf"}</dt>
+                <dd className={styles.factValue}>
+                  {book.sh}, position {book.p}
+                </dd>
+              </div>
+            ) : (
+              <div className={styles.fact}>
+                <dt className={styles.factLabel}>Pile</dt>
+                <dd className={styles.factValue}>Not yet placed</dd>
+              </div>
+            )}
             {pages ? (
               <div className={styles.fact}>
                 <dt className={styles.factLabel}>Pages</dt>
