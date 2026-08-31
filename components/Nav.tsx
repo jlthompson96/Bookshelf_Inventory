@@ -17,6 +17,7 @@ export default function Nav({ canWrite }: { canWrite: boolean }) {
   const links = [
     { href: "/", label: "The shelf" },
     { href: "/chest", label: "Storage chest" },
+    { href: "/next", label: "Read next" },
     { href: "/gallery", label: "Gallery" },
     { href: "/stats", label: "Statistics" },
     ...(canWrite ? [{ href: "/add", label: "Shelve a book" }] : []),

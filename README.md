@@ -27,6 +27,11 @@ spines, fed by a batched lookup so a screenful of jackets is one request. `/stat
 what the inventory adds up to, and `/stats/<year>` is the reading year for books that
 carry a finish date — see [Statistics and the reading year](#statistics-and-the-reading-year).
 
+`/next` helps pick the next book off the pile. It works over the books marked Unread on the
+shelf and in the chest, and offers a pick at random or a short set of questions — subject,
+whether it should come from the shelf or the chest, and whether the author is one already
+read — that narrow the pile to a shortlist. See [What to read next](#what-to-read-next).
+
 Books are shelved at `/add` by scanning the barcode on the back cover: the ISBN is looked
 up in the catalogues, the form fills itself in, and the shelf suggests the next open slot.
 This is the only route that writes to Notion, it writes to the shelf only, and it is off
@@ -189,6 +194,36 @@ know where in the pile it sits — and sorts to the top of that list. Fill both 
 Notion side and the book moves into its pile with no code change.
 
 The chest is read-only. `/add` and the scanner write to the shelf database only.
+
+## What to read next
+
+`/next` is a nudge toward the next book rather than another way to browse the whole
+inventory. Its candidate pool is the rows marked **Unread** — a book being read right now
+is in progress, and a read one is done — drawn from both the shelf and the chest, since a
+book waiting to be read is waiting wherever it sits.
+
+Two ways in, sharing that pool:
+
+- **Random pick** draws one book without looking, with a button to draw another. It works
+  through the whole pile before repeating anything.
+- **Ask me** poses up to three questions and narrows the pool to a shortlist of three. The
+  match count updates live as the answers change, so an over-tight combination is visible
+  before asking for the shortlist; when nothing fits, the page names each single answer
+  that would open it back up and how many books that leaves.
+
+The questions only use properties both databases actually hold: `Genre` for the subject,
+the collection for shelf-or-chest, and — computed, not stored — whether the author carries
+another book already marked Read. `Pages`, `Rating` and `Date Finished` are optional and
+currently defined in neither database (see [The shelf doctor](#the-shelf-doctor)), so
+nothing here asks about length or score. The author question is shown only when it can
+actually split the pool: some waiting book by an author you have read, and some by one you
+have not.
+
+Randomness is Fisher–Yates and runs only in event handlers and effects, never during
+render, so the server and client markup never disagree over a pick. The first random
+suggestion is made in an effect after mount for the same reason. Every suggestion links to
+the book's catalog card, which opens as the same intercepting modal the shelf, chest and
+gallery use — `/next` sits in the `(browse)` route group with them.
 
 ## Deep links and share images
 
