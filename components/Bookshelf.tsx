@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Book } from "@/lib/notion";
+import { booksOnShelf, shelfNumbers as shelvesIn, slotsFor } from "@/lib/shelf";
 import BookModal from "./BookModal";
 import styles from "./Bookshelf.module.css";
 
@@ -59,8 +60,6 @@ function height(b: Book) {
 const label = (b: Book) =>
   `${b.t} by ${b.a}. Shelf ${b.sh}, position ${b.p}. ${b.s}.`;
 
-type Slot = { empty: true; p: number } | (Book & { empty?: false });
-
 export default function Bookshelf({ books }: { books: Book[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -114,10 +113,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
     return ["All", ...Array.from(set).sort()];
   }, [books]);
 
-  const shelfNumbers = useMemo(
-    () => Array.from(new Set(books.map((b) => b.sh))).sort((a, b) => a - b),
-    [books]
-  );
+  const shelfNumbers = useMemo(() => shelvesIn(books), [books]);
 
   const needle = q.trim().toLowerCase();
 
@@ -334,14 +330,8 @@ export default function Bookshelf({ books }: { books: Book[] }) {
           <div className={styles.scrollFrame} data-overflow={overflowing}>
             <div className={styles.scroller} ref={scrollerRef}>
               {shelfNumbers.map((n) => {
-                const shelfBooks = books
-                  .filter((b) => b.sh === n)
-                  .sort((a, b) => a.p - b.p);
-                const maxPos = Math.max(...shelfBooks.map((b) => b.p));
-                const slots: Slot[] = [];
-                for (let p = 1; p <= maxPos; p++) {
-                  slots.push(shelfBooks.find((b) => b.p === p) ?? { empty: true, p });
-                }
+                const shelfBooks = booksOnShelf(books, n);
+                const slots = slotsFor(books, n);
                 return (
                   <section
                     key={n}

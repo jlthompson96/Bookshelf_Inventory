@@ -1,2 +1,11 @@
 .next
 node_modules
+
+# Secrets. NOTION_TOKEN is an internal integration secret with write access to
+# the database, so an accidental `git add .` must not be able to publish it.
+.env
+.env.local
+.env.*.local
+
+# Emitted by a bare `tsc` run; `next build` keeps its own under .next.
+tsconfig.tsbuildinfo

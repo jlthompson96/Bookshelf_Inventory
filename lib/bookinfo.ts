@@ -6,6 +6,8 @@
  * worse than no cover.
  */
 
+import { normalizeIsbn } from "./isbn";
+
 const UA = "Bookshelf-Inventory/1.2 (github.com/jlthompson96/Bookshelf_Inventory)";
 const DAY = 86400;
 const TIMEOUT = 5000;
@@ -274,6 +276,98 @@ function fromGoogle(volume: GoogleVolume): BookInfo {
       isbns.find((i) => i.type === "ISBN_10")?.identifier,
     source: "google",
     sourceUrl: v.infoLink ?? `https://books.google.com/books?id=${volume.id ?? ""}`,
+  };
+}
+
+/* --- ISBN lookup ---------------------------------------------------------
+   A scanned barcode is a different problem from a shelf row. Everything above
+   verifies a fuzzy title+author guess with matches(); an ISBN names exactly one
+   edition, so verification here would only reject good hits. */
+
+export type ScannedBook = BookInfo & { title: string; author: string };
+
+type OpenLibraryBook = {
+  title?: string;
+  authors?: { name?: string }[];
+  number_of_pages?: number;
+  publish_date?: string;
+  publishers?: { name?: string }[];
+  cover?: { medium?: string; large?: string };
+  subjects?: { name?: string }[];
+  url?: string;
+};
+
+/**
+ * The `api/books` endpoint rather than `/isbn/{isbn}.json`: the latter returns
+ * author *keys* that each need their own request to resolve into a name, and a
+ * scan should cost one round trip.
+ */
+async function isbnFromOpenLibrary(isbn: string): Promise<ScannedBook | null> {
+  const url =
+    "https://openlibrary.org/api/books?" +
+    new URLSearchParams({ bibkeys: `ISBN:${isbn}`, format: "json", jscmd: "data" });
+
+  const data = await json(url, DAY * 7);
+  const rec: OpenLibraryBook | undefined = data?.[`ISBN:${isbn}`];
+  if (!rec?.title) return null;
+
+  const year = Number(rec.publish_date?.match(/\d{4}/)?.[0]);
+
+  return {
+    title: rec.title,
+    author: (rec.authors ?? []).map((a) => a.name).filter(Boolean).join(", "),
+    cover: rec.cover?.large ?? rec.cover?.medium,
+    year: Number.isFinite(year) ? year : undefined,
+    publisher: rec.publishers?.[0]?.name,
+    pages: rec.number_of_pages,
+    subjects: cleanSubjects((rec.subjects ?? []).map((s) => s.name ?? "")),
+    isbn,
+    source: "openlibrary",
+    sourceUrl: rec.url ?? `https://openlibrary.org/isbn/${isbn}`,
+  };
+}
+
+async function isbnFromGoogle(isbn: string): Promise<ScannedBook | null> {
+  const key = process.env.GOOGLE_BOOKS_API_KEY;
+  const url =
+    `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1&country=US` +
+    (key ? `&key=${encodeURIComponent(key)}` : "");
+
+  const data = await json(url, DAY * 7);
+  const volume: GoogleVolume | undefined = data?.items?.[0];
+  const title = volume?.volumeInfo?.title;
+  if (!volume || !title) return null;
+
+  const sub = volume.volumeInfo?.subtitle;
+  return {
+    ...fromGoogle(volume),
+    title: sub ? `${title}: ${sub}` : title,
+    author: (volume.volumeInfo?.authors ?? []).join(", "),
+    isbn,
+  };
+}
+
+/**
+ * Same division of labour as getBookInfo — Open Library for the cover and the
+ * subject headings, Google for the publisher and a blurb — but here Google is
+ * also the fallback record outright, because Open Library's coverage of recent
+ * printings is the thinner of the two.
+ */
+export async function getBookByIsbn(raw: string): Promise<ScannedBook | null> {
+  const isbn = normalizeIsbn(raw);
+  if (!isbn) return null;
+
+  const [ol, google] = await Promise.all([isbnFromOpenLibrary(isbn), isbnFromGoogle(isbn)]);
+  if (!ol) return google;
+  if (!google) return ol;
+
+  return {
+    ...ol,
+    author: ol.author || google.author,
+    publisher: google.publisher ?? ol.publisher,
+    pages: ol.pages ?? google.pages,
+    description: google.description,
+    subjects: ol.subjects ?? google.subjects,
   };
 }
 
