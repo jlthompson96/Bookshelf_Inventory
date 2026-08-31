@@ -10,6 +10,11 @@ reordered. Any order other than shelf position switches to a catalog view, becau
 sorting a shelf by title would misrepresent where the books physically are. Filter state
 is mirrored into the URL, so a view can be shared and the Back button undoes it.
 
+Books are shelved at `/add` by scanning the barcode on the back cover: the ISBN is looked
+up in the catalogues, the form fills itself in, and the shelf suggests the next open slot.
+This is the only route that writes to Notion, and it is off unless deliberately enabled —
+see [Shelving a book](#shelving-a-book).
+
 Live deployment: <https://bookshelf-inventory-jlthompson96s-projects.vercel.app>
 
 ## Stack
@@ -63,6 +68,8 @@ Accessibility behaviour worth preserving when editing:
    NOTION_TOKEN=ntn_your_internal_integration_secret
    # Optional. Only the publisher field and some blurbs depend on it.
    GOOGLE_BOOKS_API_KEY=your_google_books_key
+   # Optional. Enables /add and POST /api/books; see "Shelving a book".
+   BOOKSHELF_WRITE_ENABLED=true
    ```
 
 4. Install dependencies and start the development server:
@@ -166,6 +173,88 @@ return an `error` value and, where available, a `detail` value.
 `title` is required and both parameters are capped at 200 characters. A book the
 catalogues do not know returns `{ "info": null }` with a 200, because a miss is an
 ordinary outcome rather than an error. Responses use a one-day shared cache.
+
+`GET /api/books/isbn?isbn=…` resolves one ISBN to a book. Unlike the lookup above it does
+no fuzzy verification, because an ISBN names exactly one edition:
+
+```json
+{
+  "book": {
+    "title": "The Hobbit",
+    "author": "J.R.R. Tolkien",
+    "pages": 300,
+    "year": 2012,
+    "publisher": "Mariner Books",
+    "isbn": "9780547928227",
+    "source": "openlibrary",
+    "sourceUrl": "https://openlibrary.org/books/…"
+  }
+}
+```
+
+Hyphens and spaces are ignored. ISBN-10 and ISBN-13 are both accepted, and the check digit
+is validated before any request is made — a failed check digit is a 400, since it means a
+misread barcode rather than an unknown book. An unknown ISBN returns `{ "book": null }`
+with a 200. Responses use a one-week shared cache.
+
+`POST /api/books` creates a book, and is the only write in the API. It requires
+`BOOKSHELF_WRITE_ENABLED` (see [Shelving a book](#shelving-a-book)) and returns 403
+otherwise.
+
+```json
+{
+  "title": "The Hobbit",
+  "author": "J.R.R. Tolkien",
+  "status": "Unread",
+  "shelf": 2,
+  "position": 7,
+  "genres": ["Fantasy"],
+  "pages": 300
+}
+```
+
+`title`, `shelf` and `position` are required. A 201 returns the new page's `url`. An
+unknown `status` is a 400 listing the allowed values, and a position already occupied on
+that shelf is a 409 naming the book that holds it.
+
+## Shelving a book
+
+`/add` is the one route that writes to Notion. Scanning uses the camera to read the EAN-13
+barcode on the back cover, resolves it against Open Library and Google Books, and prefills
+the form; the ISBN can always be typed instead, so the page works without a camera. Shelf
+and status offer only the options the Notion database actually holds — a `status`
+property's options cannot be created through the API — and the position defaults to the
+first gap on the chosen shelf, falling back to the end. A slot that is already occupied is
+refused rather than double-booked.
+
+The form is built from the database's live schema, which on API version 2025-09-03 lives on
+the **data source** rather than the database — `GET /v1/databases/{id}` no longer returns a
+`properties` object at all. Optional properties are handled by presence: `Pages`, `Rating`
+and `Date Finished` are read by the shelf but a database need not define them, so the form
+offers only the ones that exist and the create omits the rest. Naming a property Notion
+does not have fails the whole write. `Location` is set from its first existing option when
+the property is present, so a new book matches the rows already there.
+
+Writes are opt-in:
+
+```env
+BOOKSHELF_WRITE_ENABLED=true
+```
+
+Without it, `/add` explains that shelving is switched off and `POST /api/books` returns a
+403 without contacting Notion. The flag exists because Vercel Authentication cannot be
+scoped to a single route: it protects the whole deployment or none of it, so a deployment
+with protection turned off — to keep a Notion embed working, say — would otherwise expose
+a public write endpoint on a personal database. Enable Vercel Authentication **and** set
+the flag; the two together are what gate the write path.
+
+The integration's Notion capabilities must include **Insert content**, which is separate
+from read access and is not granted by default.
+
+No WebKit browser implements the Barcode Detection API, so on iOS the scanner falls back
+to a WebAssembly decoder (`barcode-detector`). It is imported dynamically and only when
+needed, so neither the shelf nor the unopened scanner pays for it. Camera access requires
+HTTPS, which `localhost` and Vercel both satisfy.
 
 ## Deployment and embedding
 

@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "barcode-detector": "^3.2.2",
     "next": "^15",
     "react": "^19",
     "react-dom": "^19"
