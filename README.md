@@ -17,6 +17,7 @@ Live deployment: <https://bookshelf-inventory-jlthompson96s-projects.vercel.app>
 - Next.js 15 with the App Router
 - React 19 and TypeScript
 - Notion API
+- Open Library and Google Books, for cover art and catalogue detail. Neither needs a key.
 - Google fonts loaded through `next/font`: Libre Caslon Display, IBM Plex Sans, and IBM Plex Mono
 - No UI dependencies. The detail card is a native `<dialog>`, which supplies focus
   trapping, `Escape` to dismiss and top-layer stacking without a modal library.
@@ -60,6 +61,8 @@ Accessibility behaviour worth preserving when editing:
 
    ```env
    NOTION_TOKEN=ntn_your_internal_integration_secret
+   # Optional. Only the publisher field and some blurbs depend on it.
+   GOOGLE_BOOKS_API_KEY=your_google_books_key
    ```
 
 4. Install dependencies and start the development server:
@@ -104,6 +107,30 @@ These properties are optional:
 Rows without a title, shelf number, or position are skipped. Results are sorted in the
 application by shelf and then position. Notion responses are cached for five minutes.
 
+## Catalogue lookup
+
+Cover art, the blurb, first publication year, publisher, ISBN and catalogue subjects are
+not stored in Notion. They are looked up in `lib/bookinfo.ts` when a catalog card is
+opened, so the shelf itself costs nothing to render and the Notion schema stays as it is.
+
+Since Notion holds no ISBN, the lookup is a title-and-author guess. Candidates are
+verified before anything is shown: the folded titles must agree and the author's surname
+must appear on the record, so a near miss renders the plain card rather than another
+book's cover. A book neither catalogue knows simply keeps the card it has today. Results
+are cached for a day on the server and for the session in the browser.
+
+Both sources are queried at once, and each answers what it is good for. Open Library is
+authoritative: it is key-free, unmetered, and supplies the cover, the first publication
+year, the ISBN and the subject headings. It is **not** asked for the publisher — its
+`publisher` field lists every edition in arbitrary order, so the first entry for *Dune* is
+a French house. The publisher therefore comes from Google Books, which names one real
+edition, and Google also fills in a blurb where Open Library has none.
+
+Google Books has no keyless quota worth relying on. Anonymous requests share one pool that
+is usually already spent, so a 429 there is routine and costs only the publisher field.
+Set `GOOGLE_BOOKS_API_KEY` in `.env.local` (and in the deployment environment) for a quota
+of your own. Everything else works without it.
+
 ## JSON API
 
 `GET /api/books` returns the same inventory used by the page:
@@ -117,6 +144,28 @@ application by shelf and then position. Notion responses are cached for five min
 
 Successful responses use a five-minute shared cache. Configuration and Notion failures
 return an `error` value and, where available, a `detail` value.
+
+`GET /api/books/info?title=…&author=…` returns the catalogue lookup for one book:
+
+```json
+{
+  "info": {
+    "cover": "https://covers.openlibrary.org/b/id/…-M.jpg",
+    "description": "…",
+    "year": 1965,
+    "publisher": "Chilton Books",
+    "pages": 412,
+    "subjects": [],
+    "isbn": "9780441013593",
+    "source": "openlibrary",
+    "sourceUrl": "https://openlibrary.org/works/…"
+  }
+}
+```
+
+`title` is required and both parameters are capped at 200 characters. A book the
+catalogues do not know returns `{ "info": null }` with a 200, because a miss is an
+ordinary outcome rather than an error. Responses use a one-day shared cache.
 
 ## Deployment and embedding
 
