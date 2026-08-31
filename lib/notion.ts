@@ -35,6 +35,10 @@ export const CHEST: Collection = {
 };
 
 export type BookCore = {
+  /** The Notion page id, dashless. The only stable handle a row has: the title
+      can be edited and the position moves, so every link, cache key and share
+      URL is built on this. */
+  id: string;
   t: string;
   a: string;
   s: "Read" | "Reading" | "Unread";
@@ -190,7 +194,17 @@ export async function getSchema(collection: Collection = SHELF): Promise<Schema>
 const text = (prop: any): string =>
   (prop?.rich_text ?? prop?.title ?? []).map((r: any) => r.plain_text).join("").trim();
 
-type NotionPage = { id: string; url: string; properties: Record<string, any> };
+type NotionPage = {
+  id: string;
+  url: string;
+  properties: Record<string, any>;
+  parent?: { data_source_id?: string; database_id?: string };
+};
+
+/* Notion hands ids back dashed and accepts them either way. Links carry the
+   dashless form, so it is the one stored — comparing a dashed id to a bare one
+   is a bug that only shows up as a book that cannot be found. */
+const bare = (id: string) => id.replace(/-/g, "").toLowerCase();
 
 function toBook(page: NotionPage, collection: Collection): ChestBook | null {
   const props = page.properties;
@@ -203,6 +217,7 @@ function toBook(page: NotionPage, collection: Collection): ChestBook | null {
   if (!collection.keepUnplaced && (group == null || position == null)) return null;
 
   return {
+    id: bare(page.id),
     t: title,
     a: text(props["Author"]) || "Unknown",
     s: (props["Status"]?.status?.name as BookCore["s"]) ?? "Unread",
@@ -216,8 +231,43 @@ function toBook(page: NotionPage, collection: Collection): ChestBook | null {
   };
 }
 
-/** Every row in a collection, unsorted. Callers order them as their view needs. */
-async function rows(collection: Collection): Promise<ChestBook[]> {
+/**
+ * A row toBook dropped, kept for the audit rather than discarded. Identified by
+ * its Notion URL rather than by title, since a title is exactly what "no-title"
+ * means it does not have.
+ */
+export type Reject = {
+  id: string;
+  url: string;
+  title: string | null;
+  why: "no-title" | "no-group" | "no-position";
+};
+
+/**
+ * Why toBook would drop this page, for a page it already has. Only called on a
+ * page toBook rejected, so by construction one of these conditions holds —
+ * mirrors toBook's own rule (see there) rather than sharing code with it,
+ * because toBook returns a book or nothing and has no channel to also explain
+ * a nothing.
+ */
+function classifyReject(page: NotionPage, collection: Collection): Reject {
+  const title = text(page.properties["Title"]) || null;
+  if (!title) return { id: bare(page.id), url: page.url, title: null, why: "no-title" };
+
+  const raw = Number(page.properties[collection.group]?.select?.name);
+  const group = Number.isFinite(raw) ? raw : null;
+  if (group == null) return { id: bare(page.id), url: page.url, title, why: "no-group" };
+
+  return { id: bare(page.id), url: page.url, title, why: "no-position" };
+}
+
+/**
+ * Every row in a collection, unsorted. Callers order them as their view needs.
+ * A row toBook drops is pushed onto `rejects` when the caller supplies one —
+ * every browsing view leaves it undefined and pays nothing for the check; only
+ * the audit asks what got dropped and why.
+ */
+async function rows(collection: Collection, rejects?: Reject[]): Promise<ChestBook[]> {
   const path = await queryPath(collection);
   const books: ChestBook[] = [];
   let cursor: string | undefined;
@@ -234,6 +284,7 @@ async function rows(collection: Collection): Promise<ChestBook[]> {
     for (const page of data.results as NotionPage[]) {
       const book = toBook(page, collection);
       if (book) books.push(book);
+      else rejects?.push(classifyReject(page, collection));
     }
     cursor = data.has_more ? data.next_cursor : undefined;
   } while (cursor);
@@ -248,19 +299,13 @@ export async function getBooks(): Promise<Book[]> {
   return books.sort((x, y) => x.sh - y.sh || x.p - y.p);
 }
 
-/**
- * The chest, piles first and then whatever has not been given one yet. Unplaced
- * books are kept rather than dropped: the pile numbers are being filled in by
- * hand in Notion, and a book in the chest is in the chest either way.
- */
-export async function getChestBooks(): Promise<ChestBook[]> {
-  const books = await rows(CHEST);
-  /* A missing value sorts last, expressed as a rank rather than by standing in
-     an Infinity: subtracting one Infinity from another is NaN, and a comparator
-     that can return NaN is only accidentally a total order. A row with a pile
-     but no position still lands ahead of one with neither, which puts the
-     half-filled rows at the top of the unplaced list where they can be
-     finished off. */
+/* A missing value sorts last, expressed as a rank rather than by standing in an
+   Infinity: subtracting one Infinity from another is NaN, and a comparator
+   that can return NaN is only accidentally a total order. A row with a pile
+   but no position still lands ahead of one with neither, which puts the
+   half-filled rows at the top of the unplaced list where they can be finished
+   off. Shared with getAudit, which sorts the same rows the same way. */
+function sortChest<T extends ChestBook>(books: T[]): T[] {
   const rank = (v: number | null) => (v == null ? 1 : 0);
   return books.sort(
     (x, y) =>
@@ -270,6 +315,93 @@ export async function getChestBooks(): Promise<ChestBook[]> {
       (x.p ?? 0) - (y.p ?? 0) ||
       x.t.localeCompare(y.t)
   );
+}
+
+/**
+ * The chest, piles first and then whatever has not been given one yet. Unplaced
+ * books are kept rather than dropped: the pile numbers are being filled in by
+ * hand in Notion, and a book in the chest is in the chest either way.
+ */
+export async function getChestBooks(): Promise<ChestBook[]> {
+  return sortChest(await rows(CHEST));
+}
+
+/**
+ * Both collections again, but keeping what toBook drops instead of discarding
+ * it — the one thing the shelf doctor needs that no browsing view does. A
+ * second pair of Notion queries rather than a shared cache with getBooks and
+ * getChestBooks: the fetch cache already keys on the request, so in practice
+ * this costs nothing extra within the five-minute window either view is
+ * serving from.
+ */
+export async function getAudit(): Promise<{
+  shelf: Book[];
+  chest: ChestBook[];
+  rejected: Reject[];
+}> {
+  const shelfRejects: Reject[] = [];
+  const chestRejects: Reject[] = [];
+  const [shelfRows, chestRows] = await Promise.all([
+    rows(SHELF, shelfRejects),
+    rows(CHEST, chestRejects),
+  ]);
+
+  const shelf = shelfRows.filter(isPlaced).sort((x, y) => x.sh - y.sh || x.p - y.p);
+  const chest = sortChest(chestRows);
+
+  return { shelf, chest, rejected: [...shelfRejects, ...chestRejects] };
+}
+
+/**
+ * One row by page id, for the deep-linked card at /book/<id>.
+ *
+ * A direct page read rather than a scan of both collections: it is one request
+ * instead of two paginated queries, and the page's parent is what says which
+ * collection it belongs to — that is, whether the card should say "Shelf" or
+ * "Pile".
+ *
+ * The parent check is not decoration. The integration can see every database on
+ * the Bookshelf Inventory page, so without it any id the token can reach would
+ * render as a book, including rows from a database that is not part of this
+ * inventory at all.
+ */
+export async function getBookById(
+  id: string
+): Promise<{ book: ChestBook; collection: Collection } | null> {
+  if (!/^[0-9a-f]{32}$/.test(bare(id))) return null;
+
+  let page: NotionPage;
+  try {
+    page = await notion(`/v1/pages/${bare(id)}`, { method: "GET" });
+  } catch (err) {
+    /* A page the token cannot see is indistinguishable from one that does not
+       exist, and both are a 404 on a URL someone pasted — not an outage. A
+       missing token or a dead Notion still throws, because those are. */
+    if (err instanceof NotionError && err.kind === "no-access") return null;
+    throw err;
+  }
+
+  const [shelfSource, chestSource] = await Promise.all([
+    dataSourceId(SHELF),
+    dataSourceId(CHEST),
+  ]);
+
+  const parent = page.parent ?? {};
+  const owner = (c: Collection, source: string | null) =>
+    (source != null && bare(parent.data_source_id ?? "") === bare(source)) ||
+    bare(parent.database_id ?? "") === bare(c.id);
+
+  const collection = owner(SHELF, shelfSource)
+    ? SHELF
+    : owner(CHEST, chestSource)
+      ? CHEST
+      : null;
+  if (!collection) return null;
+
+  /* toBook still applies the collection's own rules, so a shelf row missing its
+     position is a 404 here exactly as it is absent from the shelf. */
+  const book = toBook(page, collection);
+  return book ? { book, collection } : null;
 }
 
 export type NewBook = {
@@ -296,7 +428,7 @@ export type NewBook = {
 export async function createBook(
   input: NewBook,
   collection: Collection = SHELF
-): Promise<{ url: string }> {
+): Promise<{ id: string; url: string }> {
   const [id, schema] = await Promise.all([dataSourceId(collection), getSchema(collection)]);
   const parent = id ? { data_source_id: id } : { database_id: collection.id };
 
@@ -328,5 +460,5 @@ export async function createBook(
     revalidate: -1,
   });
 
-  return { url: page.url };
+  return { id: bare(page.id), url: page.url };
 }

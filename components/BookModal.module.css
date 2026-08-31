@@ -7,12 +7,12 @@
   width: calc(100% - 2rem);
   background: var(--paper-raised);
   color: var(--ink);
-  box-shadow: 0 24px 60px -20px rgba(35, 32, 27, 0.5);
+  box-shadow: 0 24px 60px -20px var(--shade-3);
 }
 
 .dialog::backdrop {
   /* A warm ink wash rather than the default flat black. */
-  background: rgba(35, 32, 27, 0.55);
+  background: var(--shade-3);
 }
 
 .inner {
@@ -75,7 +75,7 @@
   background: var(--cloth);
   border-radius: 1px;
   overflow: hidden;
-  box-shadow: 0 6px 16px -8px rgba(35, 32, 27, 0.55);
+  box-shadow: 0 6px 16px -8px var(--shade-3);
 }
 
 .platePending {
