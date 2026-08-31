@@ -5,9 +5,20 @@
    here. Components never carry raw hex. Contrast ratios in the comments are
    measured against --paper unless stated otherwise; the AA floor is 4.5:1 for
    text and 3:1 for the boundary of a control (WCAG 1.4.3, 1.4.11).
+
+   Three theme states, decided in this order: an explicit choice stamps
+   data-theme="light" or data-theme="dark" on <html> (set by the toggle in
+   Nav.tsx and applied before paint by the inline script in layout.tsx, so nothing
+   flashes the wrong ground); with neither attribute, prefers-color-scheme alone
+   decides. The light palette lives on bare :root. Dark values are defined twice
+   — once under the media query guarded against an explicit "light" choice, once
+   under [data-theme="dark"] — so the toggle wins in both directions rather than
+   only overriding the OS one way.
 --------------------------------------------------------------------------- */
 
 :root {
+  color-scheme: light dark;
+
   /* Ground and surfaces */
   --paper: #f4f0e6;
   --paper-raised: #fbf8f1; /* modal, catalog card */
@@ -28,7 +39,10 @@
   --walnut-deep: #4e3924;
   --brass: #7a5d28; /*  5.39:1  accent, focus ring, chip fill */
 
-  /* Cloth. Re-tuned for a paper ground; worst case is Epic Poetry at 4.64:1. */
+  /* Cloth. Re-tuned for a paper ground; worst case is Epic Poetry at 4.64:1.
+     Read spines and the current-page chip paint this as a fill with --paper as
+     the ink on top, so --paper must stay legible against every one of these —
+     see the dark block below, where both sides of that pair move together. */
   --cloth-fantasy: #8a5a24;
   --cloth-scifi: #2a5f8f;
   --cloth-classic: #5c594e;
@@ -41,6 +55,17 @@
   --cloth-poetry: #a05a1e;
   --cloth-adventure: #a33520;
   --cloth-fallback: #5c594e;
+
+  /* Ink-wash shadow and sheen, factored out of the one-off rgba() literals that
+     used to sit in each component's stylesheet. Alpha varies by use, so each
+     keeps its own token rather than sharing one with color-mix(). Light values
+     are the ink (#23201b) and paper-raised (#fbf8f1) washes those literals were
+     already built from. */
+  --shade-1: rgba(35, 32, 27, 0.05); /* board grain, page-edge striping */
+  --shade-2: rgba(35, 32, 27, 0.14); /* plate inset, card rules */
+  --shade-3: rgba(35, 32, 27, 0.5); /* drop shadows, modal backdrop */
+  --sheen-1: rgba(255, 255, 255, 0.05); /* board grain highlight */
+  --sheen-2: rgba(251, 248, 241, 0.22); /* binding / board top edge */
 
   /* Type scale */
   --step--2: 0.6875rem; /* 11px  call numbers, spine titles */
@@ -59,6 +84,89 @@
   --lift: -8px;
   --ease: cubic-bezier(0.2, 0.6, 0.35, 1);
   --dur: 140ms;
+}
+
+/* Dark values, System state: applied whenever the OS prefers dark and no
+   explicit choice overrides it. --walnut is deliberately absent — a walnut
+   shelf reads as walnut in a dark room, and re-tuning it away from the light
+   value is what keeps the board reading as the lit object the books stand on
+   rather than as more page. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper: #1a1713;
+    --paper-raised: #231f19;
+    --paper-sunk: #100e0b;
+
+    --ink: #f1ece0; /* 15.15:1 */
+    --ink-2: #c5bcab; /*  9.49:1 */
+    --ink-3: #a79d8b; /*  6.67:1 */
+
+    --rule: #39342b;
+    --rule-strong: #786f5d; /* 3.60:1 */
+
+    --brass: #c9a25a; /* 7.48:1 — the light value fails 3:1 on this ground */
+
+    --cloth-fantasy: #d29a55;
+    --cloth-scifi: #7fb4e2;
+    --cloth-classic: #b3ad9c;
+    --cloth-historical: #e58cab;
+    --cloth-mythology: #c9b24d;
+    --cloth-philosophical: #76bb9e;
+    --cloth-gothic: #ab95e3;
+    --cloth-dystopian: #bb90ea;
+    --cloth-mystery: #72bd92;
+    --cloth-poetry: #e39c55;
+    --cloth-adventure: #e5735e;
+    --cloth-fallback: #b3ad9c;
+
+    --shade-1: rgba(0, 0, 0, 0.28);
+    --shade-2: rgba(0, 0, 0, 0.4);
+    --shade-3: rgba(0, 0, 0, 0.6);
+    --sheen-1: rgba(255, 255, 255, 0.04);
+    --sheen-2: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Same values, Dark state: an explicit choice, which wins regardless of what
+   the OS prefers. Duplicated rather than shared with the media block above
+   because a selector can't be conditioned on a media feature it isn't nested
+   in — this is what lets the toggle override the OS in both directions. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #1a1713;
+  --paper-raised: #231f19;
+  --paper-sunk: #100e0b;
+
+  --ink: #f1ece0;
+  --ink-2: #c5bcab;
+  --ink-3: #a79d8b;
+
+  --rule: #39342b;
+  --rule-strong: #786f5d;
+
+  --brass: #c9a25a;
+
+  --cloth-fantasy: #d29a55;
+  --cloth-scifi: #7fb4e2;
+  --cloth-classic: #b3ad9c;
+  --cloth-historical: #e58cab;
+  --cloth-mythology: #c9b24d;
+  --cloth-philosophical: #76bb9e;
+  --cloth-gothic: #ab95e3;
+  --cloth-dystopian: #bb90ea;
+  --cloth-mystery: #72bd92;
+  --cloth-poetry: #e39c55;
+  --cloth-adventure: #e5735e;
+  --cloth-fallback: #b3ad9c;
+
+  --shade-1: rgba(0, 0, 0, 0.28);
+  --shade-2: rgba(0, 0, 0, 0.4);
+  --shade-3: rgba(0, 0, 0, 0.6);
+  --sheen-1: rgba(255, 255, 255, 0.04);
+  --sheen-2: rgba(255, 255, 255, 0.08);
 }
 
 *,
@@ -83,7 +191,9 @@ body {
 }
 
 /* Paper grain. One inline SVG turbulence, fixed and non-interactive, so the
-   texture cost is a single paint and never a scroll cost. */
+   texture cost is a single paint and never a scroll cost. Quieter in dark: the
+   same opacity that reads as paper fibre on a light ground reads as visible
+   noise on a dark one. */
 body::before {
   content: "";
   position: fixed;
@@ -92,6 +202,16 @@ body::before {
   pointer-events: none;
   opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body::before {
+    opacity: 0.02;
+  }
+}
+
+:root[data-theme="dark"] body::before {
+  opacity: 0.02;
 }
 
 main {
@@ -133,8 +253,12 @@ a {
   border: 0;
 }
 
+/* Fixed rather than absolute: as an absolute box it was offset from <main>, so
+   once the nav pushed <main> down the page the -4rem no longer cleared the
+   viewport and the link sat visible in the corner. Against the viewport it is
+   offscreen wherever <main> happens to start. */
 .skip-link {
-  position: absolute;
+  position: fixed;
   left: 1rem;
   top: -4rem;
   z-index: 20;
@@ -160,8 +284,8 @@ a {
     180deg,
     transparent,
     transparent 27px,
-    rgba(35, 32, 27, 0.07) 27px,
-    rgba(35, 32, 27, 0.07) 28px
+    var(--shade-1) 27px,
+    var(--shade-1) 28px
   );
 }
 
@@ -183,6 +307,17 @@ a {
   animation: pulse 1.6s var(--ease) infinite;
 }
 
+/* The chest's equivalent: a book lying flat rather than standing up. Sized
+   inline, since a pile is a column of individually proportioned slabs. */
+.skeleton-slab {
+  flex: none;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 2px;
+  animation: pulse 1.6s var(--ease) infinite;
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -194,7 +329,8 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-spine {
+  .skeleton-spine,
+  .skeleton-slab {
     animation: none;
   }
   .skip-link {

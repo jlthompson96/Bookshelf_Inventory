@@ -88,13 +88,13 @@ export async function POST(request: Request) {
       finished: /^\d{4}-\d{2}-\d{2}$/.test(str(body.finished)) ? str(body.finished) : undefined,
     };
 
-    const { url } = await createBook(input);
+    const { id, url } = await createBook(input);
 
     /* getBooks caches for 300s, so without this the book just added is absent
        from the shelf for up to five minutes and the write looks like it failed. */
     revalidatePath("/");
 
-    return NextResponse.json({ url }, { status: 201 });
+    return NextResponse.json({ id, url }, { status: 201 });
   } catch (err) {
     if (err instanceof ForbiddenError) {
       return NextResponse.json({ error: "forbidden", detail: err.message }, { status: 403 });

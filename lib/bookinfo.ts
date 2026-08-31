@@ -43,8 +43,12 @@ async function json(url: string, revalidate = DAY): Promise<any | null> {
 }
 
 /* Matching happens on a folded form: case, accents, punctuation and a leading
-   article all differ freely between a Notion row and a catalogue record. */
-const fold = (s: string): string =>
+   article all differ freely between a Notion row and a catalogue record.
+   Exported for the shelf doctor, which folds a title the same way to find a
+   book listed on both the shelf and in the chest — the same normalisation
+   question, asked of two Notion rows instead of a Notion row and a catalogue
+   record. */
+export const fold = (s: string): string =>
   s
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -174,7 +178,17 @@ const pickIsbn = (list?: string[]): string | undefined => {
   return clean.find((i) => i.length === 13) ?? clean.find((i) => i.length === 10);
 };
 
-async function fromOpenLibrary(title: string, author: string): Promise<BookInfo | null> {
+/**
+ * `withDescription` is what separates a card lookup from a gallery one. The
+ * search endpoint does not return descriptions, so a blurb costs a second
+ * request per book — worth it for one open card, and half the traffic of a
+ * whole gallery for something no tile displays.
+ */
+async function fromOpenLibrary(
+  title: string,
+  author: string,
+  withDescription = true
+): Promise<BookInfo | null> {
   const fields =
     "key,title,author_name,first_publish_year,number_of_pages_median,cover_i,isbn,subject";
   const url =
@@ -205,9 +219,9 @@ async function fromOpenLibrary(title: string, author: string): Promise<BookInfo 
     sourceUrl: doc.key ? `https://openlibrary.org${doc.key}` : "https://openlibrary.org",
   };
 
-  /* The search endpoint does not return descriptions, so the winning work is
-     fetched separately. A failure here still leaves a usable record. */
-  if (doc.key) {
+  /* The winning work is fetched separately. A failure here still leaves a
+     usable record. */
+  if (withDescription && doc.key) {
     const work = await json(`https://openlibrary.org${doc.key}.json`);
     info.description = cleanDescription(work?.description);
   }
@@ -398,4 +412,110 @@ export async function getBookInfo(title: string, author: string): Promise<BookIn
     pages: google.pages ?? ol.pages,
     description: ol.description ?? google.description,
   };
+}
+
+/* --- batched covers ------------------------------------------------------
+   A gallery needs eighty covers at once, which is a different problem from a
+   card needing one. Everything above is shaped for the card: it asks both
+   sources, waits for both, and spends a second Open Library request on a blurb.
+   Eighty of those is 240 requests, and Open Library starts refusing them long
+   before the grid is full. */
+
+/** What a tile actually needs. No blurb, no subjects, no publisher. */
+export type Cover = {
+  cover?: string;
+  isbn?: string;
+  year?: number;
+  source: BookInfo["source"];
+};
+
+const slim = (info: BookInfo): Cover => ({
+  cover: info.cover,
+  isbn: info.isbn,
+  year: info.year,
+  source: info.source,
+});
+
+/**
+ * Google Books is asked only when Open Library has no cover, rather than always
+ * and in parallel as getBookInfo does. Open Library answers with a cover most of
+ * the time and is the unmetered one of the two; spending a Google call on every
+ * book would exhaust the keyless quota a few rows into the grid and cost the
+ * tiles that genuinely need it.
+ */
+async function coverFor(title: string, author: string): Promise<Cover | null> {
+  const ol = await fromOpenLibrary(title, author, false);
+  if (ol?.cover) return slim(ol);
+
+  const volume = await googleVolume(title, author);
+  const google = volume ? fromGoogle(volume) : null;
+  if (google?.cover) return slim(google);
+
+  /* Neither had a jacket. The Open Library record is still worth returning if
+     there was one — the year and the ISBN are real, and the tile falls back to
+     its cloth binding for the picture. */
+  return ol ? slim(ol) : google ? slim(google) : null;
+}
+
+/**
+ * Runs `work` over `items` a few at a time.
+ *
+ * Not Promise.all: twenty-four books resolved at once is up to forty-eight
+ * upstream requests in the same tick, which Open Library rate-limits and the
+ * keyless Google quota simply refuses. A small pool keeps a batch polite and
+ * still finishes it in about a second.
+ */
+async function pooled<T, R>(
+  items: T[],
+  size: number,
+  work: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await work(items[i]);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
+  return results;
+}
+
+const POOL = 6;
+
+/**
+ * Covers for a batch of books, keyed by the id each was asked for.
+ *
+ * Deduplicated on the title and author actually searched, so a shelf holding two
+ * copies of the same book — or the same title in the shelf and the chest —
+ * costs one lookup and fills both entries.
+ */
+export async function getCovers(
+  books: { id: string; title: string; author: string }[]
+): Promise<Record<string, Cover | null>> {
+  const byKey = new Map<string, string[]>();
+  for (const b of books) {
+    if (!b.title.trim()) continue;
+    const key = `${b.title}|${b.author}`;
+    byKey.set(key, [...(byKey.get(key) ?? []), b.id]);
+  }
+
+  const keys = [...byKey.keys()];
+  const found = await pooled(keys, POOL, (key) => {
+    const [title, author] = key.split("|");
+    return coverFor(title, author);
+  });
+
+  const covers: Record<string, Cover | null> = {};
+  keys.forEach((key, i) => {
+    for (const id of byKey.get(key)!) covers[id] = found[i];
+  });
+  /* A book with no title never reached the pool, and the gallery still asked
+     about it. An explicit null is what stops it being requested again. */
+  for (const b of books) if (!(b.id in covers)) covers[b.id] = null;
+
+  return covers;
 }

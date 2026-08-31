@@ -168,6 +168,7 @@ export default function AddBook({ books: initial, schema }: { books: Book[]; sch
       }
 
       const shelved: Book = {
+        id: body.id,
         t: draft.title,
         a: draft.author || "Unknown",
         s: draft.status as Book["s"],

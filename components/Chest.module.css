@@ -1,6 +1,12 @@
-/* Presentation for the shelf. Per-book values (cloth colour, spine height and
-   flex weight) arrive as custom properties set inline; everything else lives
-   here so the palette stays in one place. */
+/* Presentation for the storage chest. The shelf stands its books upright and
+   reads them left to right; the chest lies them flat and stacks them upward, so
+   the same per-book custom properties land on the opposite axes:
+
+     --w  thickness of the book   -> slab HEIGHT
+     --d  depth lying flat        -> slab WIDTH
+
+   Everything else — the cloth fill, the page-block striping, the pasted call
+   number — is deliberately the same vocabulary as the shelf. */
 
 .page {
   max-width: 1320px;
@@ -40,7 +46,6 @@
   margin: 0 0 1.875rem;
 }
 
-/* <dt> must precede <dd> in the markup; `order` puts the numeral on top. */
 .stat {
   margin: 0;
   display: flex;
@@ -70,25 +75,20 @@
   letter-spacing: 0.06em;
 }
 
-/* --- shelves ------------------------------------------------------------- */
+/* --- the chest ----------------------------------------------------------- */
 
-/* One scroll container for every shelf, so the shelves stay aligned with each
-   other instead of drifting apart as independent scrollers. */
 .scrollFrame {
   position: relative;
 }
 
 .scroller {
   overflow-x: auto;
-  /* overflow-y computes to auto alongside overflow-x, so the lifted spine and
+  /* overflow-y computes to auto alongside overflow-x, so the lifted slab and
      its focus ring need headroom inside the box or they get clipped (2.4.11). */
   padding-top: 1.75rem;
   scrollbar-width: thin;
 }
 
-/* Edge fades sit on the frame, not the scroller, so they never clip a ring.
-   They are gated on real overflow — a fade with nothing behind it would just
-   be washing out the first and last spine. */
 .scrollFrame[data-overflow="true"]::before,
 .scrollFrame[data-overflow="true"]::after {
   content: "";
@@ -110,123 +110,117 @@
   background: linear-gradient(270deg, var(--paper), transparent);
 }
 
-/* Every shelf carries the same minimum width, so one scroll container keeps
-   them aligned instead of letting each drift as its own scroller. */
-.shelf {
-  margin-bottom: var(--shelf-gap);
-  min-width: 620px;
-}
-
-/* Headings pin to the left edge so they stay readable while a long shelf is
-   scrolled, and sit above the edge fade instead of being washed out by it. */
-.shelfTitle,
-.shelfMeta {
-  position: sticky;
-  left: 0;
-  z-index: 3;
+/* Every pile rests on the same line, so the piles stretch to a common height
+   and the chest floor is drawn once underneath all of them. */
+.chest {
+  display: flex;
+  align-items: stretch;
+  gap: 2.5rem;
+  padding: 0 0.5rem;
+  /* No min-height: the tallest pile sets the row and the rest stretch to match,
+     so the headings line up without opening a gap above short piles. */
   width: max-content;
-  max-width: 100%;
-  background: var(--paper);
-  padding-right: 1rem;
+  min-width: 100%;
 }
 
-.shelfTitle {
+/* Three rows: title, count, then the books. Only the last row grows, which
+   lines every pile's heading up along the top while the slabs themselves stay
+   bottom-aligned on the floor — a short pile should look short, but its label
+   should not float halfway up the page to say so. */
+.pile {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  justify-items: center;
+}
+
+.pileBooks {
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+
+.pileMeta {
+  margin: 0 0 0.625rem;
+  text-align: center;
+}
+
+.pileTitle {
   font: 400 var(--step-1) / 1.2 var(--font-display), Georgia, serif;
   margin: 0 0 0.25rem;
+  text-align: center;
 }
 
-.shelfMeta {
-  margin: 0 0 0.75rem;
-}
-
-.row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--gap);
-  min-height: 210px;
-}
-
-/* Unread volumes show the page block rather than a cloth binding: an ivory
-   fill with faint page-edge striping. On the old dark ground a hollow spine
-   read as an outline, but against paper it would have disappeared into the
-   background entirely. */
-.spine {
+/* A book seen from the side: the cloth binding wraps the left edge, the pages
+   show as fine horizontal striping. Mirrors .spine on the shelf, rotated. */
+.slab {
   text-decoration: none;
-  flex: var(--w) 0 0;
-  min-width: 0;
-  height: var(--h);
+  width: calc(var(--d) * 1px);
+  height: calc(var(--w) * 15px);
+  min-height: 13px;
   padding: 0;
   cursor: pointer;
   font: inherit;
   text-align: inherit;
   color: var(--cloth);
   background: repeating-linear-gradient(
-      90deg,
+      180deg,
       var(--shade-1) 0 1px,
       transparent 1px 4px
     ),
     var(--paper-raised);
   border: 1px solid var(--cloth);
-  border-bottom: none;
-  border-radius: 2px 2px 0 0;
+  border-left-width: 4px;
+  border-radius: 2px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   overflow: hidden;
   transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 
-.spine[data-read="true"] {
+.slab[data-read="true"] {
   background: var(--cloth);
   color: var(--paper);
-  /* A single inset highlight on the binding edge — enough to read as cloth
-     without tipping into skeuomorphism. */
-  box-shadow: inset 1px 0 0 var(--sheen-2);
+  box-shadow: inset 0 1px 0 var(--sheen-2);
 }
 
-.spine[data-dim="true"] {
+.slab[data-dim="true"] {
   opacity: 0.25;
 }
 
-.spine:hover,
-.spine:focus-visible {
-  transform: translateY(var(--lift));
+/* Sliding out of the pile rather than lifting off it — a book pulled from a
+   stack comes towards you. */
+.slab:hover,
+.slab:focus-visible {
+  transform: translateX(calc(var(--lift) * -1));
 }
 
-/* Title reads top-down like a real spine, which also puts the ellipsis at the
-   visible end when a long title is truncated. */
-.spineTitle {
+/* A book lying flat shows its spine the right way up, so unlike the shelf this
+   title reads horizontally. */
+.slabTitle {
   flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font: 500 var(--step--2) / 1 var(--font-sans), sans-serif;
   letter-spacing: 0.04em;
-  padding: 0.75rem 0 0.5rem;
+  padding-left: 0.5rem;
 }
 
-/* A pasted call-number label. Kept small and tight — at the previous padding
-   it swallowed a quarter of the spine. */
 .plate {
+  flex: none;
   background: var(--paper);
   color: var(--ink-2);
   box-shadow: inset 0 0 0 1px var(--shade-2);
   font: 400 0.625rem / 1 var(--font-mono), monospace;
   letter-spacing: 0.02em;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.15rem 0;
-  margin: 0 3px 5px;
+  padding: 0 0.2rem;
+  margin-right: 4px;
   border-radius: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -234,36 +228,52 @@
 
 /* A gap in the data is not something to narrate — decorative only. */
 .empty {
-  flex: 0.8 0 0;
-  min-width: 0;
-  height: 30px;
+  width: 90px;
+  height: 12px;
   background: var(--paper-sunk);
-  border-radius: 1px 1px 0 0;
+  border-radius: 1px;
 }
 
-.board {
-  height: 10px;
+/* The chest bottom. Same walnut as the shelf board, but read as a floor the
+   piles sit on rather than a board they stand on, so the grain runs across and
+   the shadow falls inward. */
+.floor {
+  height: 14px;
+  margin-top: 2px;
   border-radius: 1px;
   background: repeating-linear-gradient(
       90deg,
-      var(--shade-1) 0 2px,
-      transparent 2px 7px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      var(--sheen-1) 0 1px,
-      transparent 1px 11px
+      var(--shade-1) 0 3px,
+      transparent 3px 9px
     ),
     linear-gradient(
       180deg,
       var(--walnut-lit) 0%,
-      var(--walnut) 45%,
+      var(--walnut) 40%,
       var(--walnut-deep) 100%
     );
-  box-shadow: inset 0 1px 0 var(--sheen-2), 0 6px 10px -6px var(--shade-3);
+  box-shadow: inset 0 2px 4px var(--shade-3), inset 0 1px 0 var(--sheen-1);
 }
 
-/* --- catalog view -------------------------------------------------------- */
+/* --- unplaced ------------------------------------------------------------ */
+
+.loose {
+  margin-top: 3.5rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.75rem;
+}
+
+.looseTitle {
+  font: 400 var(--step-3) / 1.2 var(--font-display), Georgia, serif;
+  margin: 0.5rem 0 0;
+}
+
+.looseLede {
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin: 0.75rem 0 1.5rem;
+  max-width: 44em;
+}
 
 .catalog {
   list-style: none;
@@ -330,17 +340,20 @@
   .stats {
     gap: 1.5rem;
   }
+  .chest {
+    gap: 1.5rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spine,
+  .slab,
   .catalogItem {
     transition: none;
   }
   /* Both states, not just hover — a keyboard user who asked for reduced motion
      was still getting the jump on every Tab. */
-  .spine:hover,
-  .spine:focus-visible {
+  .slab:hover,
+  .slab:focus-visible {
     transform: none;
   }
 }

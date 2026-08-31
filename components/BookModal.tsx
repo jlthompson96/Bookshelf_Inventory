@@ -1,73 +1,61 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { Book } from "@/lib/notion";
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { ChestBook } from "@/lib/notion";
 import type { BookInfo } from "@/lib/bookinfo";
+import { cloth } from "@/lib/spine";
+import BookCard from "./BookCard";
 import styles from "./BookModal.module.css";
 
-/* A Notion date arrives as "YYYY-MM-DD". Passing that to the Date constructor
-   parses it as UTC midnight, which renders as the previous day for anyone west
-   of Greenwich, so the parts are read directly instead. */
-function formatFinished(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(new Date(y, m - 1, d));
-}
+/**
+ * The card as a dialog over whichever view opened it.
+ *
+ * There is no `open` prop and no `selected` state behind it any more: the card
+ * is a route now, so the modal being mounted *is* it being open, and dismissing
+ * it is a navigation. That is what makes an open card a URL someone can send.
+ *
+ * `<dialog>` supplies focus trapping, Escape, and top-layer stacking, so the
+ * only thing to arrange is that every route out of it — Escape, the button, the
+ * backdrop — goes back rather than closing a hidden piece of state.
+ */
 
-const SOURCE_NAME: Record<BookInfo["source"], string> = {
-  openlibrary: "Open Library",
-  google: "Google Books",
-};
-
-/* Lookups are keyed on the pair that was searched, so reopening a card in the
-   same session is instant and costs no request. It lives outside the component
-   because the dialog unmounts nothing but its own state. */
-const lookups = new Map<string, BookInfo | null>();
-const cacheKey = (b: Book) => `${b.t}|${b.a}`;
+/* Lookups are keyed on the book id, so reopening a card in the same session is
+   instant and costs no request. Shared with the gallery, which fills it in
+   bulk: a tile whose cover has already loaded opens its card with the plate
+   already populated. Lives outside the component because the dialog unmounts
+   with the route. */
+export const lookups = new Map<string, BookInfo | null>();
 
 type Props = {
-  book: Book | null;
-  cloth: (b: Book) => string;
-  clothFor: (genre: string) => string;
-  callNumber: (b: Book) => string;
-  onClose: () => void;
+  book: ChestBook;
+  kind?: "shelf" | "chest";
+  /** Supplied when the server already did the lookup; otherwise fetched here. */
+  info?: BookInfo | null;
 };
 
-export default function BookModal({ book, cloth, clothFor, callNumber, onClose }: Props) {
+export default function BookModal({ book, kind = "shelf", info: given }: Props) {
+  const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
-  const [info, setInfo] = useState<BookInfo | null>(null);
+  const [info, setInfo] = useState<BookInfo | null>(given ?? lookups.get(book.id) ?? null);
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [clamped, setClamped] = useState(false);
-  const blurb = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
-    if (!dialog) return;
-    if (book && !dialog.open) dialog.showModal();
-    if (!book && dialog.open) dialog.close();
-  }, [book]);
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
 
   /* Catalogue data is fetched when a card opens rather than for the whole
      shelf, so a hundred spines cost nothing until one is actually read. */
   useEffect(() => {
-    setExpanded(false);
-    setClamped(false);
-
-    if (!book) return;
-
-    const key = cacheKey(book);
-    if (lookups.has(key)) {
-      setInfo(lookups.get(key) ?? null);
+    if (given !== undefined) return;
+    if (lookups.has(book.id)) {
+      setInfo(lookups.get(book.id) ?? null);
       setLoading(false);
       return;
     }
 
-    /* The reader can close one spine and open another while a request is in
+    /* The reader can close one card and open another while a request is in
        flight, so the response is discarded unless it is still the one wanted. */
     const controller = new AbortController();
     let current = true;
@@ -79,7 +67,7 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         const found: BookInfo | null = data?.info ?? null;
-        lookups.set(key, found);
+        lookups.set(book.id, found);
         if (current) setInfo(found);
       })
       .catch(() => {
@@ -93,35 +81,18 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
       current = false;
       controller.abort();
     };
-  }, [book]);
-
-  /* The "read more" control is offered only when the blurb is genuinely cut
-     off, which depends on the rendered width and so has to be measured. */
-  useEffect(() => {
-    const el = blurb.current;
-    setClamped(!!el && el.scrollHeight > el.clientHeight + 4);
-  }, [info]);
+  }, [book.id, book.t, book.a, given]);
 
   /* `close` fires for Escape as well as for close(), so this is the single
-     place the parent's state gets cleared. showModal() restores focus to the
-     element that opened the dialog on its own. */
-  const handleClose = () => {
-    if (book) onClose();
-  };
+     place the navigation happens. showModal() restores focus to the element
+     that opened the dialog on its own. */
+  const handleClose = () => router.back();
 
   /* Clicks on the backdrop are reported as clicks on the dialog itself. The
      dialog carries no padding, so anything landing on it directly is backdrop. */
   const handleClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     if (e.target === ref.current) ref.current?.close();
   };
-
-  /* A cover id can outlive the image behind it. Dropping the URL falls the
-     plate back to its cloth colour rather than leaving a broken image. */
-  const handleCoverError = useCallback(() => {
-    setInfo((prev) => (prev ? { ...prev, cover: undefined } : prev));
-  }, []);
-
-  const pages = book?.pages ?? info?.pages;
 
   return (
     <dialog
@@ -130,193 +101,16 @@ export default function BookModal({ book, cloth, clothFor, callNumber, onClose }
       aria-labelledby="book-modal-title"
       onClose={handleClose}
       onClick={handleClick}
-      style={{ "--cloth": book ? cloth(book) : "transparent" } as React.CSSProperties}
+      style={{ "--cloth": cloth(book) } as React.CSSProperties}
     >
-      {book ? (
-        <div className={styles.inner}>
-          <div className={styles.top}>
-            <span className={styles.topMeta}>
-              <span>{callNumber(book)}</span>
-              <span>{book.s}</span>
-            </span>
-            <button
-              type="button"
-              className={styles.close}
-              onClick={() => ref.current?.close()}
-            >
-              <span aria-hidden="true">&times;</span>
-              <span className="visually-hidden">Close</span>
-            </button>
-          </div>
-
-          <div className={styles.head}>
-            {/* The plate is always drawn so the card keeps its geometry whether
-                a cover arrives, fails, or was never found. */}
-            <div
-              className={`${styles.plate} ${loading ? styles.platePending : ""}`}
-              aria-hidden="true"
-            >
-              {info?.cover ? (
-                <img
-                  className={styles.cover}
-                  src={info.cover}
-                  alt=""
-                  width={180}
-                  height={270}
-                  loading="lazy"
-                  onError={handleCoverError}
-                />
-              ) : null}
-            </div>
-
-            <div className={styles.headText}>
-              <h3 id="book-modal-title" className={styles.title}>
-                {book.t}
-              </h3>
-              <p className={styles.author}>{book.a}</p>
-            </div>
-          </div>
-
-          {book.g.length ? (
-            <div className={styles.section}>
-              <p className={styles.sectionLabel}>Subject headings</p>
-              <ul className={styles.genres}>
-                {book.g.map((g) => (
-                  <li
-                    key={g}
-                    className={styles.genre}
-                    style={{ "--genre": clothFor(g) } as React.CSSProperties}
-                  >
-                    {g}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <dl className={styles.facts}>
-            <div className={styles.fact}>
-              <dt className={styles.factLabel}>Shelf</dt>
-              <dd className={styles.factValue}>
-                {book.sh}, position {book.p}
-              </dd>
-            </div>
-            {pages ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>Pages</dt>
-                <dd className={styles.factValue}>{pages}</dd>
-              </div>
-            ) : null}
-            {book.rating ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>Rating</dt>
-                <dd className={styles.factValue}>
-                  <span className={styles.stars} aria-hidden="true">
-                    {"★".repeat(book.rating)}
-                    {"☆".repeat(Math.max(0, 5 - book.rating))}
-                  </span>
-                  <span className="visually-hidden">{book.rating} out of 5</span>
-                </dd>
-              </div>
-            ) : null}
-            {book.finished ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>Finished</dt>
-                <dd className={styles.factValue}>{formatFinished(book.finished)}</dd>
-              </div>
-            ) : null}
-            {info?.year ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>Published</dt>
-                <dd className={styles.factValue}>{info.year}</dd>
-              </div>
-            ) : null}
-            {info?.publisher ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>Publisher</dt>
-                <dd className={styles.factValue}>{info.publisher}</dd>
-              </div>
-            ) : null}
-            {info?.isbn ? (
-              <div className={styles.fact}>
-                <dt className={styles.factLabel}>ISBN</dt>
-                <dd className={styles.factValue}>{info.isbn}</dd>
-              </div>
-            ) : null}
-          </dl>
-
-          <div aria-busy={loading}>
-            {loading ? (
-              <div className={styles.section} aria-hidden="true">
-                <p className={styles.sectionLabel}>About</p>
-                <div className={styles.skeleton}>
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            ) : null}
-
-            {info?.description ? (
-              <div className={styles.section}>
-                <p className={styles.sectionLabel}>About</p>
-                <p
-                  ref={blurb}
-                  className={`${styles.blurb} ${expanded ? "" : styles.blurbClamped}`}
-                >
-                  {info.description}
-                </p>
-                {clamped ? (
-                  <button
-                    type="button"
-                    className={styles.more}
-                    aria-expanded={expanded}
-                    onClick={() => setExpanded((v) => !v)}
-                  >
-                    {expanded ? "Show less" : "Read more"}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {info?.subjects?.length ? (
-              <div className={styles.section}>
-                <p className={styles.sectionLabel}>Catalogue subjects</p>
-                <ul className={styles.subjects}>
-                  {info.subjects.map((s) => (
-                    <li key={s} className={styles.subject}>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-
-          <div className={styles.footer}>
-            <a
-              className={styles.notionLink}
-              href={book.u}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Notion
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
-            {info ? (
-              <a
-                className={styles.sourceLink}
-                href={info.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Details from {SOURCE_NAME[info.source]}
-                <span className="visually-hidden"> (opens in a new tab)</span>
-              </a>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <BookCard
+        book={book}
+        kind={kind}
+        info={info}
+        loading={loading}
+        titleId="book-modal-title"
+        onClose={() => ref.current?.close()}
+      />
     </dialog>
   );
 }
