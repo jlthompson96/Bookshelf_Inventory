@@ -186,10 +186,10 @@ export default function Chest({ books }: { books: ChestBook[] }) {
                   <div className={styles.chest}>
                     {piles.map((n) => {
                       const inPile = booksOnShelf(placed, n);
-                      /* slotsFor counts up from the bottom of the pile, so the
-                         column is drawn in reverse: position 1 is the book
-                         everything else is resting on. */
-                      const slots = [...slotsFor(placed, n)].reverse();
+                      /* slotsFor counts up from the bottom of the pile, and the
+                         column is drawn in that same order: position 1 at the
+                         top, the highest position down on the floor. */
+                      const slots = slotsFor(placed, n);
                       return (
                         <section
                           key={n}
