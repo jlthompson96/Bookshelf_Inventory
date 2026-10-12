@@ -1,4 +1,42 @@
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Bookshelf Inventory — a Notion library drawn as the shelf it really is" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://bookshelf-inventory-jlthompson96s-projects.vercel.app"><img src="https://img.shields.io/badge/live-on_Vercel-7a5d28?style=for-the-badge&logo=vercel&logoColor=white&labelColor=23201b" alt="Live on Vercel"></a>
+  <img src="https://img.shields.io/badge/Next.js-15-7a5d28?style=for-the-badge&logo=nextdotjs&logoColor=white&labelColor=23201b" alt="Next.js 15">
+  <img src="https://img.shields.io/badge/React-19-7a5d28?style=for-the-badge&logo=react&logoColor=white&labelColor=23201b" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5-6b4f32?style=for-the-badge&logo=typescript&logoColor=white&labelColor=23201b" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Notion-API-6b4f32?style=for-the-badge&logo=notion&logoColor=white&labelColor=23201b" alt="Notion API">
+  <img src="https://img.shields.io/badge/WCAG_2.2-AA-6b4f32?style=for-the-badge&labelColor=23201b" alt="WCAG 2.2 AA">
+  <img src="https://img.shields.io/badge/UI_deps-none-6b4f32?style=for-the-badge&labelColor=23201b" alt="No UI dependencies">
+  <img src="https://img.shields.io/badge/license-MIT-6b4f32?style=for-the-badge&labelColor=23201b" alt="MIT license">
+</p>
+
 # Bookshelf Inventory
+
+<p align="center">
+  <img src="docs/assets/views.svg" alt="Bookshelf Inventory views: the shelf, the storage chest, gallery, what to read next, statistics, add a book, the shelf doctor and book deep links" width="100%">
+</p>
+
+```mermaid
+flowchart LR
+    subgraph Notion["🗂️ Notion — Bookshelf Inventory page"]
+        B[("Books<br/>(the shelf)")]
+        C[("Storage Chest Books")]
+    end
+    subgraph Next["▲ Next.js 15 on Vercel"]
+        L["lib/notion.ts<br/>5-minute cache"]
+        V["/ · /chest · /gallery · /next<br/>/stats · /doctor · /book/…"]
+        A["/add · POST /api/books<br/>(BOOKSHELF_WRITE_ENABLED)"]
+        I["lib/bookinfo.ts<br/>cover · blurb · ISBN"]
+    end
+    B & C -- "NOTION_TOKEN" --> L --> V
+    A -- "writes to the shelf only" --> B
+    V -- "catalog card opened" --> I
+    I --> OL["📚 Open Library"]
+    I --> GB["📖 Google Books"]
+```
 
 Bookshelf Inventory turns a Notion database into an interactive physical bookshelf. Books
 are drawn in shelf and left-to-right position order on a warm paper ground: read volumes
@@ -60,6 +98,10 @@ Live deployment: <https://bookshelf-inventory-jlthompson96s-projects.vercel.app>
   trapping, `Escape` to dismiss and top-layer stacking without a modal library.
 
 ## Design system
+
+<p align="center">
+  <img src="docs/assets/cloth.svg" alt="The eleven genre cloth colours, light theme (as spine fills) and dark theme (as text on a dark ground)" width="100%">
+</p>
 
 Every colour, type step and duration resolves through a token defined in
 `app/globals.css`; components carry no raw hex. Presentation lives in CSS Modules
@@ -505,3 +547,7 @@ share previews resolve against; without it every `og:image` is emitted relative 
 crawler can follow it. To embed the shelf in Notion, add an `/embed` block
 pointing to the deployed URL. Disable Vercel Authentication for the deployment or the
 embed will show a login page.
+
+## License
+
+[MIT](LICENSE) © 2026 Joey Thompson
