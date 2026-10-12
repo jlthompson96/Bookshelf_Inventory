@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 314" width="1000" height="314" role="img" aria-label="Bookshelf Inventory views: the shelf, the storage chest, gallery, what to read next, statistics, add a book, the shelf doctor and book deep links">
+  <style>
+    .bar { animation: glow 2.6s ease-in-out infinite; }
+    @keyframes glow { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+    .card { animation: lift 6s ease-in-out infinite; }
+    @keyframes lift { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+    @media (prefers-reduced-motion: reduce) { .bar, .card { animation: none } }
+  </style>
+  <defs>
+    <radialGradient id="n0" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#2a5f8f" stop-opacity="0.12"/><stop offset="1" stop-color="#2a5f8f" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n1" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#8a5a24" stop-opacity="0.12"/><stop offset="1" stop-color="#8a5a24" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n2" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#5a468a" stop-opacity="0.12"/><stop offset="1" stop-color="#5a468a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n3" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#376b57" stop-opacity="0.12"/><stop offset="1" stop-color="#376b57" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n4" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#9a3f63" stop-opacity="0.12"/><stop offset="1" stop-color="#9a3f63" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n5" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#a33520" stop-opacity="0.12"/><stop offset="1" stop-color="#a33520" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n6" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#7a6410" stop-opacity="0.12"/><stop offset="1" stop-color="#7a6410" stop-opacity="0"/></radialGradient>
+    <radialGradient id="n7" cx="0.9" cy="0.1" r="0.8"><stop offset="0" stop-color="#5c594e" stop-opacity="0.12"/><stop offset="1" stop-color="#5c594e" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g class="card" style="animation-delay:-0.00s">
+    <rect x="10.0" y="10" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#2a5f8f" stroke-opacity="0.45"/>
+    <rect x="10.0" y="10" width="234.5" height="140" rx="6" fill="url(#n0)"/>
+    <g transform="translate(28.0,26)"><rect x="2" y="4" width="7" height="26" rx="1.5" fill="none" stroke="#2a5f8f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="12" y="0" width="8" height="30" rx="1.5" fill="none" stroke="#2a5f8f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 8l6-2 6 24-6 2z" fill="none" stroke="#2a5f8f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 34h38" fill="none" stroke="#2a5f8f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="28.0" y="88" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#2a5f8f">The shelf</text>
+    <text x="28.0" y="110" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Spines in shelf order;</text>
+    <text x="28.0" y="128" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">search, filter, sort</text>
+    <rect class="bar" x="26.0" y="140" width="202.5" height="3" rx="1.5" fill="#2a5f8f" style="animation-delay:-0.0s"/>
+  </g>
+  <g class="card" style="animation-delay:-0.45s">
+    <rect x="258.5" y="10" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#8a5a24" stroke-opacity="0.45"/>
+    <rect x="258.5" y="10" width="234.5" height="140" rx="6" fill="url(#n1)"/>
+    <g transform="translate(276.5,26)"><rect x="0" y="14" width="36" height="20" rx="3" fill="none" stroke="#8a5a24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 22h36M15 22v5h6v-5" fill="none" stroke="#8a5a24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="8" width="24" height="6" rx="1.5" fill="none" stroke="#8a5a24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="2" width="18" height="6" rx="1.5" fill="none" stroke="#8a5a24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="276.5" y="88" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#8a5a24">/chest</text>
+    <text x="276.5" y="110" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Storage Chest books</text>
+    <text x="276.5" y="128" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">as the piles they are</text>
+    <rect class="bar" x="274.5" y="140" width="202.5" height="3" rx="1.5" fill="#8a5a24" style="animation-delay:-0.4s"/>
+  </g>
+  <g class="card" style="animation-delay:-0.90s">
+    <rect x="507.0" y="10" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#5a468a" stroke-opacity="0.45"/>
+    <rect x="507.0" y="10" width="234.5" height="140" rx="6" fill="url(#n2)"/>
+    <g transform="translate(525.0,26)"><rect x="0" y="2" width="15" height="20" rx="2" fill="none" stroke="#5a468a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="21" y="2" width="15" height="20" rx="2" fill="none" stroke="#5a468a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="0" y="26" width="36" height="6" rx="2" fill="none" stroke="#5a468a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="525.0" y="88" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#5a468a">/gallery</text>
+    <text x="525.0" y="110" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Shelf and chest</text>
+    <text x="525.0" y="128" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">together, as covers</text>
+    <rect class="bar" x="523.0" y="140" width="202.5" height="3" rx="1.5" fill="#5a468a" style="animation-delay:-0.8s"/>
+  </g>
+  <g class="card" style="animation-delay:-1.35s">
+    <rect x="755.5" y="10" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#376b57" stroke-opacity="0.45"/>
+    <rect x="755.5" y="10" width="234.5" height="140" rx="6" fill="url(#n3)"/>
+    <g transform="translate(773.5,26)"><rect x="2" y="2" width="30" height="30" rx="6" fill="none" stroke="#376b57" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="2.4" fill="#376b57"/><circle cx="23" cy="23" r="2.4" fill="#376b57"/><circle cx="17" cy="17" r="2.4" fill="#376b57"/></g>
+    <text x="773.5" y="88" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#376b57">/next</text>
+    <text x="773.5" y="110" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Random pick, or three</text>
+    <text x="773.5" y="128" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">questions to a shortlist</text>
+    <rect class="bar" x="771.5" y="140" width="202.5" height="3" rx="1.5" fill="#376b57" style="animation-delay:-1.2s"/>
+  </g>
+  <g class="card" style="animation-delay:-1.80s">
+    <rect x="10.0" y="164" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#9a3f63" stroke-opacity="0.45"/>
+    <rect x="10.0" y="164" width="234.5" height="140" rx="6" fill="url(#n4)"/>
+    <g transform="translate(28.0,180)"><path d="M2 34h34" fill="none" stroke="#9a3f63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="5" y="16" width="7" height="14" rx="1.5" fill="none" stroke="#9a3f63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="15" y="4" width="7" height="26" rx="1.5" fill="none" stroke="#9a3f63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="25" y="11" width="7" height="19" rx="1.5" fill="none" stroke="#9a3f63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="28.0" y="242" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#9a3f63">/stats</text>
+    <text x="28.0" y="264" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">What the collection adds</text>
+    <text x="28.0" y="282" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">up to; the reading year</text>
+    <rect class="bar" x="26.0" y="294" width="202.5" height="3" rx="1.5" fill="#9a3f63" style="animation-delay:-1.6s"/>
+  </g>
+  <g class="card" style="animation-delay:-2.25s">
+    <rect x="258.5" y="164" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#a33520" stroke-opacity="0.45"/>
+    <rect x="258.5" y="164" width="234.5" height="140" rx="6" fill="url(#n5)"/>
+    <g transform="translate(276.5,180)"><path d="M2 4v28M7 4v28M11 4v28M17 4v28M21 4v28M26 4v28M32 4v28" fill="none" stroke="#a33520" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 18h36" stroke="#a33520" stroke-width="2.4"/></g>
+    <text x="276.5" y="242" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#a33520">/add</text>
+    <text x="276.5" y="264" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Scan an ISBN barcode</text>
+    <text x="276.5" y="282" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">to shelve a new book</text>
+    <rect class="bar" x="274.5" y="294" width="202.5" height="3" rx="1.5" fill="#a33520" style="animation-delay:-2.0s"/>
+  </g>
+  <g class="card" style="animation-delay:-2.70s">
+    <rect x="507.0" y="164" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#7a6410" stroke-opacity="0.45"/>
+    <rect x="507.0" y="164" width="234.5" height="140" rx="6" fill="url(#n6)"/>
+    <g transform="translate(525.0,180)"><path d="M6 2v10a10 10 0 0 0 20 0V2" fill="none" stroke="#7a6410" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22v4a8 8 0 0 0 16 0v-4" fill="none" stroke="#7a6410" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="19" r="3" fill="none" stroke="#7a6410" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="525.0" y="242" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#7a6410">/doctor</text>
+    <text x="525.0" y="264" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">What got skipped or looks</text>
+    <text x="525.0" y="282" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">wrong, with Notion links</text>
+    <rect class="bar" x="523.0" y="294" width="202.5" height="3" rx="1.5" fill="#7a6410" style="animation-delay:-2.4s"/>
+  </g>
+  <g class="card" style="animation-delay:-3.15s">
+    <rect x="755.5" y="164" width="234.5" height="140" rx="6" fill="#fbf8f1" stroke="#5c594e" stroke-opacity="0.45"/>
+    <rect x="755.5" y="164" width="234.5" height="140" rx="6" fill="url(#n7)"/>
+    <g transform="translate(773.5,180)"><rect x="4" y="0" width="26" height="34" rx="2" fill="none" stroke="#5c594e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 8h14M10 14h14M10 20h8" fill="none" stroke="#5c594e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <text x="773.5" y="242" font-family="'Libre Caslon Display', 'Libre Caslon Text', Georgia, serif" font-size="20" font-weight="700" letter-spacing="0" fill="#5c594e">/book/…</text>
+    <text x="773.5" y="264" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">Every catalog card has</text>
+    <text x="773.5" y="282" font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#5a5348">its own shareable URL</text>
+    <rect class="bar" x="771.5" y="294" width="202.5" height="3" rx="1.5" fill="#5c594e" style="animation-delay:-2.8s"/>
+  </g>
+</svg>
